@@ -2,3 +2,4 @@ env
 __pycache__
 gimli.egg-info/
 dist/
+a.out
