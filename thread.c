@@ -24,15 +24,58 @@ thread_create_detached(void *(*func) (void *),
     pthread_create(&tid, &attr, func, arg);
 }
 
+char *
+read_file(const char *path, int *len)
+{
+    FILE *f = NULL;
+    int fsize;
+    char *buf = NULL;
+
+    if ((f = fopen(path, "r")) != NULL) {
+
+        /* Go to the end of the file. */
+        if (fseek(f, 0L, SEEK_END) == 0) {
+
+            /* Get the size of the file. */
+            fsize = ftell(f);
+            if (fsize == -1) {
+                goto exit;
+            }
+
+            /* Allocate our buffer to that size. */
+            buf = malloc(sizeof (char) * (fsize + 1));
+
+            /* Go back to the start of the file. */
+            if (fseek(f, 0L, SEEK_SET) != 0) {
+                goto exit;
+            }
+
+            /* Read the entire file into memory. */
+            *len = fread(buf, sizeof(char), fsize, f);
+            if (ferror(f) != 0) {
+                goto exit;
+            } else {
+                buf[(*len) + 1] = '\0';
+            }
+        }
+    }
+
+exit:
+    if (f != NULL) {
+        fclose(f);
+    }
+
+    return (buf);
+}
+
 void *
 handle_connection(void *arg)
 {
     int fd, len;
     char buf[1024];
     char *index = NULL;
-    long bufsize;
-    size_t index_size;
-    FILE *f = NULL;
+    char output[2046];
+    FILE *p = NULL;
 
     fd = *((int *) arg);
 
@@ -42,52 +85,20 @@ handle_connection(void *arg)
         goto exit;
     }
 
-    // Keep in case we use ever use user input.
-    buf[len] = '\0';
-    write(fd, buf, len);
-    goto exit;
-
-    /* Parse index.html and write it to response buffer. */
-    f = fopen("index.html", "r");
-    if (f != NULL) {
-
-        /* Go to the end of the file. */
-        if (fseek(f, 0L, SEEK_END) == 0) {
-
-            /* Get the size of the file. */
-            bufsize = ftell(f);
-            if (bufsize == -1) {
-                goto exit;
-            }
-
-            /* Allocate our buffer to that size. */
-            index = malloc(sizeof (char) * (bufsize + 1));
-
-            /* Go back to the start of the file. */
-            if (fseek(f, 0L, SEEK_SET) != 0) {
-                goto exit;
-            }
-
-            /* Read the entire file into memory. */
-            index_size = fread(index, sizeof(char), bufsize, f);
-            if (ferror(f) != 0) {
-                goto exit;
-            } else {
-                index[index_size++] = '\0';
-            }
-
-            /* Write out response. */
-            write(fd, index, index_size);
+    /* Write out system info from gimli. */
+    if ((p = popen("./a.out", "r")) != NULL) {
+        while (fgets(output, sizeof (output), p) != NULL) {
+            write(fd, output, strlen(output));
         }
-    } else {
-        write(fd, "oopsie\n", strlen("oopsie\n"));
+        pclose(p);
+        goto exit;
     }
+
+    /* Parse file and write it as response. */
+    // index = read_file("/tmp/gimli", &len);
+    // write(fd, index, len);
 
 exit:
-    /* Cleanup. */
-    if (f != NULL) {
-        fclose(f);
-    }
     if (fd > 0) {
         close(fd);
     }

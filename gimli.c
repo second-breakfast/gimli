@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sys/sysinfo.h>
 
 #define PROC_STAT    "/proc/stat"
@@ -16,7 +17,8 @@
 #define PROC_UPTIME  "/proc/uptime"
 
 #define ERRTXT_LEN   256
-#define MILLION      1E6
+#define MILLION      1000000L
+#define BILLION      1000000000L
 
 enum cpu_util {
     CPU_USER       = 0,
@@ -377,9 +379,9 @@ main()
 {
     gimli_t           gimli;
     struct timespec   start, stop;
-    long double       elapsed;
+    uint64_t          elapsed;
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     get_cpu_util(&gimli);
     if (gimli.errflag) {
         printf("get_cpu_util failed: %s\n", gimli.errtxt);
@@ -400,7 +402,7 @@ main()
         printf("get_meminfo failed: %s\n", gimli.errtxt);
         return (S_FAIL);
     }
-    clock_gettime(CLOCK_MONOTONIC, &stop);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
 
     printf("cpu %.2Lf%% us, %.2Lf%% ni, %.2Lf%% sy, %.2Lf%% id, "
             "%.2Lf%% wa\n",
@@ -423,8 +425,9 @@ main()
     printf("freehigh:  %lu kB\n", gimli.meminfo[FREE_HIGH]);
     printf("number of current processes: %hu\n", gimli.procs);
 
-    elapsed = ((stop.tv_sec - start.tv_sec) +
-            (stop.tv_nsec - start.tv_nsec)) / MILLION;
-    printf("took %.2Lf ms\n", elapsed);
+    elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
+            stop.tv_nsec - start.tv_nsec) / MILLION;
+    printf("took %llums\n", (long long unsigned int) elapsed);
+
     return 0;
 }
