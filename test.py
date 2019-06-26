@@ -1,23 +1,19 @@
 
-import sys
-import os
+class Gimli():
 
-from gimli import SSHClient, printc, GREEN, __version__
+    def meminfo(self):
+        m = {}
+        f = open('/proc/meminfo', 'r')
+        for line in f:
+            key = line.split()[0].rstrip(':')
+            val = int(line.split()[1])
+            m[key] = val
+        return m
 
-def meminfo():
-    with open('/proc/meminfo', 'r') as f:
-        MemTotal = int(f.readline().split()[1])
-        MemFree = int(f.readline().split()[1])
-        MemAvailable = f.readline().split()[1]
-        Buffers = f.readline().split()[1]
-        Cached = f.readline().split()[1]
-        SwapCached = f.readline().split()[1]
-        Active = f.readline().split()[1]
-        Inactive = f.readline().split()[1]
-        Active_anon = f.readline().split()[1]
-        Inactive_anon = f.readline().split()[1]
-    print(MemTotal)
-meminfo()
+g = Gimli()
+m = g.meminfo()
+print(m)
+print("MemUsage: {0:.2f}%".format(m['MemFree']/m['MemTotal']*100))
 
 '''
 MemTotal:         443132 kB
