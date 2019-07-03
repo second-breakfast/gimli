@@ -3,7 +3,7 @@ Mines for system information.
 
 ## Install the gimli CLI
 ```bash
-# This will copy the gimli binary to /usr/local/bin/gimli
+# This will install the gimli binary to /usr/local/bin/gimli
 git clone https://github.com/second-breakfast/gimli && cd gimli
 sh install.sh
 ```
