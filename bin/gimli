@@ -1,0 +1,36 @@
+#!/bin/env python3
+
+try:
+    import sys
+    import time
+    import curses
+
+    from gimli import Gimli
+except:
+    sys.exit("gimli package is not installed, try: 'pip3 install gimli'")
+
+g = Gimli()
+try:
+    cmd = sys.argv[1]
+    if cmd == "-h":
+        print("usage: gimli [-h | cpu_util | meminfo | memusage]")
+    if cmd == "cpu_util":
+        print(g.cpu_util())
+    elif cmd == "memusage":
+        print(g.memusage())
+    elif cmd == "meminfo":
+        print(g.meminfo())
+    else:
+        print("usage: gimli [-h | cpu_util | meminfo | memusage]")
+except IndexError as e:
+    try:
+        def run_gimli(window):
+            while True:
+                window.addstr(1, 0, "{}".format(time.strftime("%B %d, %Y    %H:%M:%S")))
+                window.addstr(3, 0, "Gimli is mining for system info...\n")
+                window.addstr(4, 0, g.memusage_str()+"\n"+g.cpu_util_str()+"\n")
+                window.refresh()
+                time.sleep(2)
+        curses.wrapper(run_gimli)
+    except KeyboardInterrupt:
+        exit(0)
