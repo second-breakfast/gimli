@@ -3,12 +3,12 @@ Mines for system information.
 
 ## Install the gimli CLI
 ```bash
-git clone https://github.com/second-breakfast/gimli
-cd gimli
+# This will copy the gimli binary to /usr/local/bin/gimli
+git clone https://github.com/second-breakfast/gimli && cd gimli
 sh install.sh
 ```
 
-## Run like so
+## Run it like so
 ```bash
 usage: gimli [-h | cpu_util | meminfo | memusage]
 ```
