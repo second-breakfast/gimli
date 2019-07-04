@@ -1,0 +1,6 @@
+#!/bin/bash
+
+find . -type f -name "*[ch]" > cscope.files
+cscope -b
+ctags -L cscope.files
+echo 'Done!'
