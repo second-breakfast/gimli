@@ -3,3 +3,6 @@ __pycache__
 gimli.egg-info/
 dist/
 a.out
+cscope.files
+cscope.out
+tags
