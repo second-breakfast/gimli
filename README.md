@@ -11,7 +11,7 @@ sudo sh install.sh
 
 ## Run it like so
 ```bash
-usage: gimli [-h | cpu_util | cpu_tot | meminfo | memusage | serve]
+usage: gimli [-h | cpu_util | cpu_tot | meminfo | memusage | serve [N] | watch]
 ```
 
 ## Or... use the gimli API

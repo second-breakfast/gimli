@@ -9,6 +9,9 @@ class Gimli():
     def __init__(self):
         pass
 
+    def log(self, s):
+        print("[{}] [{}] {}".format(time.asctime(), os.getpid(), s))
+
     def meminfo(self):
         """
         @return a dict() containing /proc/meminfo keys and values
@@ -161,7 +164,7 @@ class Gimli():
         fd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         fd.bind((host, port))
         fd.listen()
-        print('gimli server listening on port {}...'.format(port))
+        self.log('gimli server listening on port {}...'.format(port))
 
         # Create pre-fork workers to handle requests.
         for i in range(workers):
@@ -171,14 +174,14 @@ class Gimli():
             if pid == 0:
                 # Get the pid of this child process.
                 t = os.getpid()
-                print('Starting worker gimli-{}'.format(t))
+                self.log('Starting worker gimli-{}'.format(t))
                 try:
                     while 1:
                         try:
                             conn, addr = fd.accept()
-                            print('gimli-{} connection from {}'.format(t, addr))
+                            self.log('gimli-{} connection from {}'.format(t, addr))
                         except:
-                            print('gimli-{} exiting...'.format(t))
+                            self.log('gimli-{} exiting...'.format(t))
                             sys.exit(0)
                         if not conn.recv(1024):
                             break
