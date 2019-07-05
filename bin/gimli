@@ -12,9 +12,7 @@ except:
 g = Gimli()
 try:
     cmd = sys.argv[1]
-    if cmd == "-h":
-        print("usage: gimli [-h | cpu_util | meminfo | memusage]")
-    elif cmd == "cpu_util":
+    if cmd == "cpu_util":
         print(g.cpu_util())
     elif cmd == "memusage":
         print(g.memusage())
