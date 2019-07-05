@@ -3,9 +3,10 @@ Mines for system information.
 
 ## Install the gimli CLI
 ```bash
-# This will install the gimli binary to /usr/local/bin/gimli
+# This will install the gimli binary to /usr/local/bin/gimli.
 git clone https://github.com/second-breakfast/gimli && cd gimli
-sh install.sh
+sudo sh install.sh
+# (Don't worry, the script will ask to confirm before doing anything.)
 ```
 
 ## Run it like so
