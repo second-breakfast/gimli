@@ -18,8 +18,16 @@ try:
         print(g.memusage())
     elif cmd == "meminfo":
         print(g.meminfo())
+    elif cmd == "serve":
+        '''
+        try:
+            workers = int(sys.argv[2])
+        except:
+            workers = 3
+        '''
+        g.gimli_server('0.0.0.0', 8001, 3)
     else:
-        print("usage: gimli [-h | cpu_util | meminfo | memusage]")
+        print("usage: gimli [-h | cpu_util | meminfo | memusage | serve]")
 except IndexError as e:
     try:
         def run_gimli(window):

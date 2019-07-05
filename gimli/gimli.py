@@ -1,4 +1,8 @@
+import os
+import sys
 import time
+import socket
+import random
 
 class Gimli():
 
@@ -23,6 +27,22 @@ class Gimli():
         """
         m = self.meminfo()
         return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
+
+    def cpu_usage(self):
+        """
+        @return the current cpu usage as a percentage
+        """
+        last_idle = last_total = 0
+        f = open('/proc/stat')
+        for i in range(2):
+            fields = [float(column) for column in f.readline().strip().split()[1:]]
+            idle, total = fields[3], sum(fields)
+            idle_delta, total_delta = idle - last_idle, total - last_total
+            last_idle, last_total = idle, total
+            utilisation = 100.0 * (1.0 - idle_delta / total_delta)
+            if i == 0: time.sleep(2)
+        f.close()
+        return utilisation
 
     def cpu_util(self):
         """
@@ -70,3 +90,106 @@ class Gimli():
         s = "cpu: {:5}% us, {:5}% ni, {:5}% sy, {:5}% id, {:5}% wa"
         return s.format(c['user'], c['nice'], c['system'], c['idle'],
               c['iowait'])
+
+    def name_generator(self):
+        adjectives = ["autumn", "hidden", "bitter", "misty", "silent",
+                      "empty", "dry", "dark", "summer", "icy", "delicate",
+                      "quiet", "white", "cool", "spring", "winter",
+                      "patient", "crimson", "wispy", "weathered", "blue",
+                      "billowing", "broken", "cold", "damp", "falling",
+                      "frosty", "green", "long", "late", "bold", "little",
+                      "morning", "muddy", "red", "rough", "still",
+                      "small", "sparkling", "shy", "wandering",
+                      "withered", "wild", "black", "young", "holy",
+                      "solitary", "fragrant", "aged", "snowy", "proud",
+                      "floral", "restless", "polished", "purple",
+                      "lively", "nameless", "scarlet", "gloomy", "lucid",
+                      "snarling", "lurking", "fierce", "furious",
+                      "lonely", "gnawing", "burning", "keen", "boggy",
+                      "swampy", "torrid", "glowing", "arid", "droughty",
+                      "skinny", "meager", "stout", "sturdy", "crispy",
+                      "blooming", "stormy", "rousing", "flowing", "old",
+                      "glistening", "clear", "winding", "meandering",
+                      "mild", "hot", "frozen", "frightening", "lucky",
+                      "profound", "aqueous", "arcane", "cryptic", "fast",
+                      "gentle", "immense", "limitless", "lit", "murmuring",
+                      "protected", "pure", "rocky", "polite", "cautious",
+                      "perky", "naughty", "upright", "straight"]
+        nouns = ["waterfall", "river", "breeze", "moon", "rain", "wind",
+                 "sea", "morning", "snow", "lake", "sunset", "pine",
+                 "shadow", "leaf", "dawn", "glitter", "forest", "hill",
+                 "cloud", "meadow", "sun", "glade", "bird", "brook",
+                 "butterfly", "bush", "dew", "dust", "field", "fire",
+                 "flower", "firefly", "feather", "grass", "haze",
+                 "mountain", "night", "pond", "darkness", "snowflake",
+                 "silence", "sound", "sky", "shape", "surf", "thunder",
+                 "violet", "water", "wildflower", "wave", "water",
+                 "resonance", "sun", "wood", "dream", "cherry", "tree",
+                 "fog", "frost", "voice", "frog", "smoke", "star", "ibex",
+                 "roe", "deer", "cave", "stream", "creek", "ditch",
+                 "puddle", "oak", "fox", "wolf", "owl", "eagle", "hawk",
+                 "badger", "nightingale", "ocean", "island", "marsh",
+                 "swamp", "blaze", "glow", "hail", "echo", "flame",
+                 "twilight", "whale", "raven", "blossom", "mist", "ray",
+                 "beam", "stone", "rock", "cliff", "reef", "crag", "peak",
+                 "summit", "wetland", "glacier", "thunderstorm", "ice",
+                 "firn", "spark", "boulder", "rabbit", "abyss",
+                 "avalanche", "moor", "reed", "harbor", "chamber",
+                 "savannah", "garden", "brook", "earth", "oasis",
+                 "bastion", "ridge", "bayou", "citadel", "shore",
+                 "cavern", "gorge", "spring", "arrow", "heap"]
+        random.seed()
+        return random.choice(adjectives)+'-'+random.choice(nouns)
+
+    def http_response(self, pid):
+        res = 'HTTP/1.1 200 OK\n'
+        res = res + 'Content-Type: text/html\n\n'
+        res = res + '<!doctype html>\n'
+        res = res + '<html lang="en">\n'
+        res = res + '<head>\n'
+        res = res + '<meta charset="utf-8">\n'
+        res = res + '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n'
+        res = res + '<title>gimli</title></head>'
+        res = res + '<body>\n'
+        res = res + 'gimli-{}\n\n'
+        res = res + self.name_generator() + '\n'
+        res = res + '</body></html>\n'
+        return res.format(pid)
+
+    def gimli_server(self, host, port, workers):
+        fd = socket.socket()
+        fd.bind((host, port))
+        fd.listen()
+        print('gimli server listening on port {}...'.format(port))
+
+        # Create pre-fork workers to handle requests.
+        for i in range(workers):
+            pid = os.fork()
+
+            # If pid == 0 then we're in the child process.
+            if pid == 0:
+                # Get the pid of this child process.
+                t = os.getpid()
+                print('Starting worker gimli-{}'.format(t))
+                try:
+                    while 1:
+                        try:
+                            conn, addr = fd.accept()
+                            print('gimli-{} connection from {}'.format(t, addr))
+                        except:
+                            print('gimli-{} exiting...'.format(t))
+                            sys.exit(0)
+                        if not conn.recv(1024):
+                            break
+                        conn.sendall(self.http_response(t).encode('utf-8'))
+                        conn.close()
+                except:
+                    fd.close()
+                    sys.exit(0)
+
+        # Wait for child workers to exit.
+        try:
+            os.waitpid(-1, 0)
+            fd.close()
+        except:
+            fd.close()
