@@ -10,7 +10,7 @@ sh install.sh
 
 ## Run it like so
 ```bash
-usage: gimli [-h | cpu_util | meminfo | memusage]
+usage: gimli [-h | cpu_util | meminfo | memusage | serve]
 ```
 
 ## Or... use the gimli API
