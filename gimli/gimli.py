@@ -158,6 +158,7 @@ class Gimli():
 
     def gimli_server(self, host, port, workers):
         fd = socket.socket()
+        fd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         fd.bind((host, port))
         fd.listen()
         print('gimli server listening on port {}...'.format(port))
