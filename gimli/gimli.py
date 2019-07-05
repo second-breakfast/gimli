@@ -28,20 +28,20 @@ class Gimli():
         m = self.meminfo()
         return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
 
-    def cpu_usage(self):
+    def cpu_tot(self):
         """
         @return the current cpu usage as a percentage
         """
         last_idle = last_total = 0
-        f = open('/proc/stat')
         for i in range(2):
+            f = open('/proc/stat')
             fields = [float(column) for column in f.readline().strip().split()[1:]]
             idle, total = fields[3], sum(fields)
             idle_delta, total_delta = idle - last_idle, total - last_total
             last_idle, last_total = idle, total
-            utilisation = 100.0 * (1.0 - idle_delta / total_delta)
-            if i == 0: time.sleep(2)
-        f.close()
+            utilisation = round(100.0 * (1.0 - idle_delta / total_delta), 1)
+            f.close()
+            if i == 0: time.sleep(.2)
         return utilisation
 
     def cpu_util(self):
