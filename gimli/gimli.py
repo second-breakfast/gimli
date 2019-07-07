@@ -1,8 +1,10 @@
 import os
 import sys
 import time
+import json
 import socket
 import random
+import subprocess
 
 class Gimli():
 
@@ -13,14 +15,14 @@ class Gimli():
         """
         @return help text string
         """
-        return "usage: gimli [-h|cpustat|cputot|meminfo|memusage|serve [n]]"
+        return "usage: gimli [-h|cpu|mem|stat|meminfo|serve [n]]"
 
     def log(self, s):
         """
         Print timestamped string to stdout.
         @param s the string to print
         """
-        date = time.strftime("%m-%d-%Y, %H:%M:%S")
+        date = time.strftime("%Y-%m-%d %H:%M:%S")
         print("[{}] [{}] {}".format(date, os.getpid(), s))
 
     def meminfo(self):
@@ -35,34 +37,18 @@ class Gimli():
                 m[key] = val
         return m
 
-    def memusage(self):
+    def mem(self):
         """
-        @return current memory usage as a percentage (float)
+        @return current total memory usage as a percentage
         """
         m = self.meminfo()
         return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
 
-    def cputot(self):
-        """
-        @return current total cpu usage as a percentage (float)
-        """
-        last_idle = last_total = 0
-        for i in range(2):
-            f = open('/proc/stat')
-            fields = [float(column) for column in f.readline().strip().split()[1:]]
-            idle, total = fields[3], sum(fields)
-            idle_delta, total_delta = idle - last_idle, total - last_total
-            last_idle, last_total = idle, total
-            utilisation = round(100.0 * (1.0 - idle_delta / total_delta), 1)
-            f.close()
-            if i == 0: time.sleep(.05)
-        return utilisation
-
-    def cpustat(self):
+    def stat(self):
         """
         @return dict() containing cpu utilization data from /proc/stat
         """
-        c1, c2, diff, cpu_util = [], [], [], {}
+        c1, c2, diff, stat = [], [], [], {}
         # First poll
         with open('/proc/stat', 'r') as f:
             for data in f.readline().split():
@@ -85,12 +71,40 @@ class Gimli():
             diff.append(d)
             cpu_total += d
         # Return final dict
-        cpu_util['user'] = round((diff[0] / cpu_total) * 100.0, 1)
-        cpu_util['nice'] = round((diff[1] / cpu_total) * 100.0, 1)
-        cpu_util['system'] = round((diff[2] / cpu_total) * 100.0, 1)
-        cpu_util['idle'] = round((diff[3] / cpu_total) * 100.0, 1)
-        cpu_util['iowait'] = round((diff[4] / cpu_total) * 100.0, 1)
-        return cpu_util
+        stat['user'] = round((diff[0] / cpu_total) * 100.0, 1)
+        stat['nice'] = round((diff[1] / cpu_total) * 100.0, 1)
+        stat['system'] = round((diff[2] / cpu_total) * 100.0, 1)
+        stat['idle'] = round((diff[3] / cpu_total) * 100.0, 1)
+        stat['iowait'] = round((diff[4] / cpu_total) * 100.0, 1)
+        stat['irq'] = round((diff[5] / cpu_total) * 100.0, 1)
+        stat['softirq'] = round((diff[6] / cpu_total) * 100.0, 1)
+        stat['steal'] = round((diff[7] / cpu_total) * 100.0, 1)
+        stat['guest'] = round((diff[8] / cpu_total) * 100.0, 1)
+        stat['guest_nice'] = round((diff[9] / cpu_total) * 100.0, 1)
+        return stat
+
+    def cpu(self):
+        """
+        @return current total cpu utilisation as a percentage
+        """
+        last_idle = last_total = 0
+        for i in range(2):
+            f = open('/proc/stat')
+            fields = [float(column) for column in f.readline().strip().split()[1:]]
+            idle, total = fields[3], sum(fields)
+            idle_delta, total_delta = idle - last_idle, total - last_total
+            last_idle, last_total = idle, total
+            utilisation = round(100.0 * (1.0 - idle_delta / total_delta), 1)
+            f.close()
+            if i == 0: time.sleep(.05)
+        return utilisation
+
+    def watch(self):
+        """
+        Runs gimli commands in a loop and prints the output.
+        """
+        with subprocess.Popen(['watch', 'gimli', 'stat']) as p:
+            pass
 
     def name_generator(self):
         adjectives = ["autumn", "hidden", "bitter", "misty", "silent",
@@ -142,11 +156,11 @@ class Gimli():
         random.seed()
         return random.choice(adjectives)+'-'+random.choice(nouns)
 
-    def http_response(self, pid):
+    def http_response(self, body):
         """
-        Simple HTTP response generator.
-        @param pid the pid of the serving gimli worker
-        @return string containing a minimal HTTP response and some html
+        Simple HTTP response generator for an HTML page.
+        @param body the content to place into <body></body>
+        @return string containing a minimal HTTP reponse and HTML page
         """
         res = 'HTTP/1.1 200 OK\n'
         res = res + 'Content-Type: text/html\n\n'
@@ -157,10 +171,20 @@ class Gimli():
         res = res + '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n'
         res = res + '<title>gimli</title></head>'
         res = res + '<body>\n'
-        res = res + 'gimli-{}\n\n'
+        res = res + '{}\n\n'
         res = res + self.name_generator() + '\n'
         res = res + '</body></html>\n'
-        return res.format(pid)
+        return res.format(body)
+
+    def json_response(self, data):
+        """
+        Simple HTTP reponse for JSON.
+        @param data to place into the JSON reponse
+        @return string containing a minimal HTTP response and json.dumps(data)
+        """
+        res = 'HTTP/1.1 200 OK\n'
+        res = res + 'Content-Type: application/json\n\n"{}"'
+        return json.dumps(res.format(data))
 
     def gimli_server(self, host, port, workers):
         """
@@ -194,7 +218,8 @@ class Gimli():
                             sys.exit(0)
                         if not conn.recv(1024):
                             break
-                        conn.sendall(self.http_response(t).encode('utf-8'))
+                        # conn.sendall(self.http_response(t).encode('utf-8'))
+                        conn.sendall(self.json_response(self.stat()).encode('utf-8'))
                         conn.close()
                 except:
                     fd.close()

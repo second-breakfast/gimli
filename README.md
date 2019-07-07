@@ -23,7 +23,7 @@ $ sudo python3 -m pip install --upgrade gimli
 ## Run it like so
 ```bash
 $ gimli
-usage: gimli [-h|cpustat|cputot|meminfo|memusage|serve [n]]
+usage: gimli [-h|cpu|mem|stat|meminfo|serve [n]]
 ```
 
 ## Or... use the gimli API

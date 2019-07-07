@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='gimli',
-      version='0.2',
+      version='0.2.1',
       description='And my axe!',
       url='https://github.com/second-breakfast/gimli',
       author='Peregrin Took',

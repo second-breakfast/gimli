@@ -10,12 +10,12 @@ except:
 g = Gimli()
 if len(sys.argv) > 1:
     cmd = sys.argv[1]
-    if cmd == "cpustat":
-        print(g.cpustat())
-    elif cmd == "cputot":
-        print(g.cputot())
-    elif cmd == "memusage":
-        print(g.memusage())
+    if cmd == "cpu":
+        print(g.cpu())
+    elif cmd == "stat":
+        print(g.stat())
+    elif cmd == "mem":
+        print(g.mem())
     elif cmd == "meminfo":
         print(g.meminfo())
     elif cmd == "serve":
