@@ -5,7 +5,7 @@ try:
     import time
     from gimli import Gimli
 except:
-    sys.exit("Problem loading gimli, try: 'pip3 install gimli'")
+    sys.exit("Problem loading gimli, try: 'pip3 install --upgrade gimli'")
 
 g = Gimli()
 if len(sys.argv) > 1:

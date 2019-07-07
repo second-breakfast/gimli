@@ -23,7 +23,7 @@ $ sudo python3 -m pip install --upgrade gimli
 ## Run it like so
 ```bash
 $ gimli
-usage: gimli [-h | cpu_util | cpu_tot | meminfo | memusage | serve [N] | watch]
+usage: gimli [-h|cpustat|cputot|meminfo|memusage|serve [n]]
 ```
 
 ## Or... use the gimli API
@@ -33,5 +33,5 @@ Python 3.7.1 (default, Nov  2 2018, 20:33:06)
 Type "help", "copyright", "credits" or "license" for more information.
 >>> from gimli import Gimli
 >>> g = Gimli()
->>> g.cpu_util()
+>>> g.cpustat()
 ```
