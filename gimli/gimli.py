@@ -44,7 +44,7 @@ class Gimli():
             last_idle, last_total = idle, total
             utilisation = round(100.0 * (1.0 - idle_delta / total_delta), 1)
             f.close()
-            if i == 0: time.sleep(.2)
+            if i == 0: time.sleep(.05)
         return utilisation
 
     def cpu_util(self):
