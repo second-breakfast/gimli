@@ -9,12 +9,23 @@ class Gimli():
     def __init__(self):
         pass
 
+    def help(self):
+        """
+        @return help text string
+        """
+        return "usage: gimli [-h|cpustat|cputot|meminfo|memusage|serve [n]]"
+
     def log(self, s):
-        print("[{}] [{}] {}".format(time.asctime(), os.getpid(), s))
+        """
+        Print timestamped string to stdout.
+        @param s the string to print
+        """
+        date = time.strftime("%m-%d-%Y, %H:%M:%S")
+        print("[{}] [{}] {}".format(date, os.getpid(), s))
 
     def meminfo(self):
         """
-        @return a dict() containing /proc/meminfo keys and values
+        @return dict() containing /proc/meminfo keys and values
         """
         m = {}
         with open('/proc/meminfo', 'r') as f:
@@ -31,9 +42,9 @@ class Gimli():
         m = self.meminfo()
         return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
 
-    def cpu_tot(self):
+    def cputot(self):
         """
-        @return the current cpu usage as a percentage
+        @return current total cpu usage as a percentage (float)
         """
         last_idle = last_total = 0
         for i in range(2):
@@ -47,14 +58,11 @@ class Gimli():
             if i == 0: time.sleep(.05)
         return utilisation
 
-    def cpu_util(self):
+    def cpustat(self):
         """
-        @return a dict() containing cpu utilization data from /proc/stat
+        @return dict() containing cpu utilization data from /proc/stat
         """
-        c1 = []
-        c2 = []
-        diff = []
-        cpu_util = {}
+        c1, c2, diff, cpu_util = [], [], [], {}
         # First poll
         with open('/proc/stat', 'r') as f:
             for data in f.readline().split():
@@ -83,16 +91,6 @@ class Gimli():
         cpu_util['idle'] = round((diff[3] / cpu_total) * 100.0, 1)
         cpu_util['iowait'] = round((diff[4] / cpu_total) * 100.0, 1)
         return cpu_util
-
-    def memusage_str(self):
-        m = self.memusage()
-        return "mem: {:5}%".format(m)
-
-    def cpu_util_str(self):
-        c = self.cpu_util()
-        s = "cpu: {:5}% us, {:5}% ni, {:5}% sy, {:5}% id, {:5}% wa"
-        return s.format(c['user'], c['nice'], c['system'], c['idle'],
-              c['iowait'])
 
     def name_generator(self):
         adjectives = ["autumn", "hidden", "bitter", "misty", "silent",
@@ -145,6 +143,11 @@ class Gimli():
         return random.choice(adjectives)+'-'+random.choice(nouns)
 
     def http_response(self, pid):
+        """
+        Simple HTTP response generator.
+        @param pid the pid of the serving gimli worker
+        @return string containing a minimal HTTP response and some html
+        """
         res = 'HTTP/1.1 200 OK\n'
         res = res + 'Content-Type: text/html\n\n'
         res = res + '<!doctype html>\n'
@@ -160,6 +163,12 @@ class Gimli():
         return res.format(pid)
 
     def gimli_server(self, host, port, workers):
+        """
+        Open a TCP socket and respond to requests.
+        @param host the host to run on, typically localhost
+        @param port the port to listen on, we usually use 8001
+        @param workers the number of gimli workers to spawn
+        """
         fd = socket.socket()
         fd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         fd.bind((host, port))

@@ -3,7 +3,6 @@
 try:
     import sys
     import time
-    import curses
     from gimli import Gimli
 except:
     sys.exit("Problem loading gimli, try: 'pip3 install gimli'")
@@ -11,10 +10,10 @@ except:
 g = Gimli()
 if len(sys.argv) > 1:
     cmd = sys.argv[1]
-    if cmd == "cpu_util":
-        print(g.cpu_util())
-    elif cmd == "cpu_tot":
-        print(g.cpu_tot())
+    if cmd == "cpustat":
+        print(g.cpustat())
+    elif cmd == "cputot":
+        print(g.cputot())
     elif cmd == "memusage":
         print(g.memusage())
     elif cmd == "meminfo":
@@ -33,19 +32,7 @@ if len(sys.argv) > 1:
             # Default to 3 workers.
             workers = 3
         g.gimli_server("0.0.0.0", 8001, workers)
-    elif cmd == "watch":
-        try:
-            def run_gimli(window):
-                while True:
-                    window.addstr(1, 0, "{}".format(time.strftime("%B %d, %Y    %H:%M:%S")))
-                    window.addstr(3, 0, "Gimli is mining for system info...\n")
-                    window.addstr(4, 0, g.memusage_str()+"\n"+g.cpu_util_str()+"\n")
-                    window.refresh()
-                    time.sleep(2)
-            curses.wrapper(run_gimli)
-        except KeyboardInterrupt:
-            sys.exit(0)
     else:
-        print("usage: gimli [-h | cpu_util | cpu_tot | meminfo | memusage | serve [N] | watch]")
+        print(g.help())
 else:
-    print("usage: gimli [-h | cpu_util | cpu_tot | meminfo | memusage | serve [N] | watch]")
+    print(g.help())
