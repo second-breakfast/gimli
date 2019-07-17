@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 try:
+    import os
     import sys
     import time
     from gimli import Gimli
@@ -29,9 +30,9 @@ if len(sys.argv) > 1:
                 print("Abort. Workers must be: 0 < workers < 10")
                 sys.exit(1)
         else:
-            # Default to 3 workers.
-            workers = 3
-        g.gimli_server("0.0.0.0", 8001, workers)
+            # Default to number of usable cpus.
+            workers = len(os.sched_getaffinity(0))
+        g.serve("0.0.0.0", 8043, workers)
     else:
         print(g.help())
 else:

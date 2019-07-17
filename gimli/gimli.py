@@ -99,6 +99,17 @@ class Gimli():
             if i == 0: time.sleep(.05)
         return utilisation
 
+    def gimli(self):
+        """
+        @return dict() containing data from all gimli comands
+        """
+        return {
+            'cpu': self.cpu(),
+            'mem': self.mem(),
+            'stat': self.stat(),
+            'meminfo': self.meminfo()
+        }
+
     def watch(self):
         """
         Runs gimli commands in a loop and prints the output.
@@ -106,7 +117,7 @@ class Gimli():
         with subprocess.Popen(['watch', 'gimli', 'stat']) as p:
             pass
 
-    def name_generator(self):
+    def name(self):
         adjectives = ["autumn", "hidden", "bitter", "misty", "silent",
                       "empty", "dry", "dark", "summer", "icy", "delicate",
                       "quiet", "white", "cool", "spring", "winter",
@@ -156,48 +167,80 @@ class Gimli():
         random.seed()
         return random.choice(adjectives)+'-'+random.choice(nouns)
 
-    def http_response(self, body):
+    def html_response(self, body):
         """
-        Simple HTTP response generator for an HTML page.
+        Simple response generator for an HTML page.
         @param body the content to place into <body></body>
-        @return string containing a minimal HTTP reponse and HTML page
+        @return string containing a minimal HTTP response and HTML page
         """
-        res = 'HTTP/1.1 200 OK\n'
-        res = res + 'Content-Type: text/html\n\n'
-        res = res + '<!doctype html>\n'
-        res = res + '<html lang="en">\n'
-        res = res + '<head>\n'
-        res = res + '<meta charset="utf-8">\n'
-        res = res + '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n'
-        res = res + '<title>gimli</title></head>'
-        res = res + '<body>\n'
-        res = res + '{}\n\n'
-        res = res + self.name_generator() + '\n'
-        res = res + '</body></html>\n'
-        return res.format(body)
+        response = (
+                'HTTP/1.1 200 OK\r\n',
+                'Content-Type: text/html\r\n',
+                '\r\n',
+                '<!doctype html>\r\n',
+                '<html lang="en">',
+                '<head>\r\n',
+                '<meta charset="utf-8">\r\n',
+                '<meta name="viewport">\r\n',
+                '<meta content="width=device-width, initial-scale=1, shrink-to-fit=no">\r\n'
+                '<title>gimli</title></head>\r\n',
+                '<body>\r\n',
+                '{}\r\n',
+                '</body></html>\r\n'
+                )
+        return "".join(response).format(body)
 
     def json_response(self, data):
         """
-        Simple HTTP reponse for JSON.
-        @param data to place into the JSON reponse
+        Simple HTTP JSON response.
+        @param data the data to place into the JSON response
         @return string containing a minimal HTTP response and json.dumps(data)
         """
-        res = 'HTTP/1.1 200 OK\n'
-        res = res + 'Content-Type: application/json\n\n"{}"'
-        return json.dumps(res.format(data))
+        response = (
+                'HTTP/1.1 200 OK\r\n',
+                'Content-Type: application/json; charset=utf-8\r\n',
+                '\r\n',
+                '{}',
+                '\r\n'
+                )
+        return "".join(response).format(json.dumps(data, indent=2))
 
-    def gimli_server(self, host, port, workers):
+    def router(self, request):
+        """
+        Simple HTTP routing system.
+        @param request the request to route
+        @return the response to return
+        """
+        get = str(request).split(' ')[1]
+        if get == "/" or get == "/gimli":
+            response = self.json_response(self.gimli())
+        elif get == "/cpu":
+            response = self.json_response(self.cpu())
+        elif get == "/mem":
+            response = self.json_response(self.mem())
+        elif get == "/stat":
+            response = self.json_response(self.stat())
+        elif get == "/meminfo":
+            response = self.json_response(self.meminfo())
+        elif get == "/name":
+            response = self.json_response(self.name())
+        else:
+            d = {'err': 1}
+            response = self.json_response(d)
+        return response.encode('utf-8')
+
+    def serve(self, host, port, workers):
         """
         Open a TCP socket and respond to requests.
         @param host the host to run on, typically localhost
-        @param port the port to listen on, we usually use 8001
+        @param port the port to listen on, 8043 by default
         @param workers the number of gimli workers to spawn
         """
         fd = socket.socket()
         fd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         fd.bind((host, port))
         fd.listen()
-        self.log('gimli server listening on port {}...'.format(port))
+        self.log('Listening at: http://{}:{}'.format(host, port))
 
         # Create pre-fork workers to handle requests.
         for i in range(workers):
@@ -207,21 +250,24 @@ class Gimli():
             if pid == 0:
                 # Get the pid of this child process.
                 t = os.getpid()
-                self.log('Starting worker gimli-{}'.format(t))
+                self.log('Booting worker gimli-{}'.format(t))
+                # TODO: assign worker to specific cpu
+                # os.sched_setaffinity(0, {0}) # current process on 0-th core
                 try:
                     while 1:
                         try:
                             conn, addr = fd.accept()
-                            self.log('gimli-{} connection from {}'.format(t, addr))
+                            self.log('Connection from {}'.format(addr))
                         except:
                             self.log('gimli-{} exiting...'.format(t))
                             sys.exit(0)
-                        if not conn.recv(1024):
+                        data = conn.recv(1024)
+                        if not data:
                             break
-                        # conn.sendall(self.http_response(t).encode('utf-8'))
-                        conn.sendall(self.json_response(self.stat()).encode('utf-8'))
+                        conn.sendall(self.router(data))
                         conn.close()
-                except:
+                except Exception as e:
+                    self.log('gimli-{} exiting: {}'.format(t, e))
                     fd.close()
                     sys.exit(0)
 
