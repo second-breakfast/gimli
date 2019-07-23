@@ -1,6 +1,8 @@
 # gimli
 Mines for system information.
 
+"And my axe!" -Gimli
+
 ## Install gimli
 
 Option 1, install in a virtualenv.
