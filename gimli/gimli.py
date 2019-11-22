@@ -42,7 +42,8 @@ class Gimli():
         @return current total memory usage as a percentage
         """
         m = self.meminfo()
-        return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
+        # return round((100.0 - (m['MemAvailable'] / m['MemTotal']) * 100.0), 1)
+        return round((1.0 - (m['MemFree'] / m['MemTotal'])) * 100.0, 1)
 
     def stat(self):
         """

@@ -3,6 +3,8 @@
  *    Mines for system information.
  */
 
+#include "gimli.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,58 +13,6 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/sysinfo.h>
-
-#define PROC_STAT    "/proc/stat"
-#define PROC_LOADAVG "/proc/loadavg"
-#define PROC_UPTIME  "/proc/uptime"
-
-#define ERRTXT_LEN   256
-#define MILLION      1000000L
-#define BILLION      1000000000L
-
-enum cpu_util {
-    CPU_USER       = 0,
-    CPU_NICE       = 1,
-    CPU_SYSTEM     = 2,
-    CPU_IDLE       = 3,
-    CPU_IOWAIT     = 4,
-    CPU_NRSTATS    = 5,
-};
-
-enum cpu_loadavg {
-    LOAD_ONE       = 0,
-    LOAD_FIVE      = 1,
-    LOAD_TEN       = 2,
-    LOAD_NRSTATS   = 3
-};
-
-enum meminfo {
-    TOTAL_RAM      = 0,
-    FREE_RAM       = 1,
-    SHARED_RAM     = 2,
-    BUFFER_RAM     = 3,
-    TOTAL_SWAP     = 4,
-    FREE_SWAP      = 5,
-    TOTAL_HIGH     = 6,
-    FREE_HIGH      = 7,
-    MEM_UNIT       = 8,
-    MEM_NRSTATS    = 9
-};
-
-typedef enum {
-    S_PASS         = 0,
-    S_FAIL         = 1
-} status_t;
-
-typedef struct {
-    unsigned       errflag:1;                 // 0 - ok (default) , 1 - bad
-    char           errtxt[ERRTXT_LEN];        // i.e. strerror(errno)
-    long double    cpu_util[CPU_NRSTATS];     // in percentages
-    long double    cpu_loadavg[LOAD_NRSTATS]; // straight from /proc/loadavg
-    unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes
-    unsigned long  uptime;                    // system uptime in seconds
-    unsigned short procs;                     // number of current processes
-} gimli_t;
 
 /**
  * safe_strncpy - nul terminates dest with '\0'
@@ -104,14 +54,14 @@ get_cpu_util(gimli_t *gimli)
     if ((file = fopen(PROC_STAT, "r")) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // read first line of /proc/stat
     if (fgets(buffer, sizeof (buffer), file) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     cp = strtok(buffer, " "); // skip first column 'cpu'
@@ -120,7 +70,7 @@ get_cpu_util(gimli_t *gimli)
         if ((cp = strtok(NULL, " ")) == NULL) {
             safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
             gimli->errflag = 1;
-            return (S_FAIL);
+            return (G_FAIL);
         }
 
         errno = 0; // see NOTES section in strtold(3)
@@ -128,30 +78,30 @@ get_cpu_util(gimli_t *gimli)
         if (errno != 0) {
             safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
             gimli->errflag = 1;
-            return (S_FAIL);
+            return (G_FAIL);
         }
     }
 
     if (fclose(file) != 0) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
-    usleep(200000); // wait 200ms
+    usleep(1000000); // wait 1000ms == 1s
 
     // second poll
     if ((file = fopen(PROC_STAT, "r")) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // read first line of /proc/stat
     if (fgets(buffer, sizeof (buffer), file) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     cp = strtok(buffer, " "); // skip first column 'cpu'
@@ -160,7 +110,7 @@ get_cpu_util(gimli_t *gimli)
         if ((cp = strtok(NULL, " ")) == NULL) {
             safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
             gimli->errflag = 1;
-            return (S_FAIL);
+            return (G_FAIL);
         }
 
         errno = 0; // see NOTES section in strtold(3)
@@ -168,14 +118,14 @@ get_cpu_util(gimli_t *gimli)
         if (errno != 0) {
             safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
             gimli->errflag = 1;
-            return (S_FAIL);
+            return (G_FAIL);
         }
     }
 
     if (fclose(file) != 0) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // calculate diffs
@@ -203,7 +153,7 @@ get_cpu_util(gimli_t *gimli)
         gimli->cpu_util[i] = (cpu_util_diff[i] / cpu_total) * 100;
     }
 
-    return (S_PASS);
+    return (G_PASS);
 }
 
 /**
@@ -230,14 +180,14 @@ get_loadavg(gimli_t *gimli)
     if ((file = fopen(PROC_LOADAVG, "r")) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // read first line of /proc/loadavg
     if (fgets(buffer, sizeof (buffer), file) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // we only want first 3 values
@@ -247,13 +197,13 @@ get_loadavg(gimli_t *gimli)
             if ((cp = strtok(buffer, " ")) == NULL) {
                 safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
                 gimli->errflag = 1;
-                return (S_FAIL);
+                return (G_FAIL);
             }
         } else {
             if ((cp = strtok(NULL, " ")) == NULL) {
                 safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
                 gimli->errflag = 1;
-                return (S_FAIL);
+                return (G_FAIL);
             }
         }
 
@@ -262,14 +212,14 @@ get_loadavg(gimli_t *gimli)
         if (errno != 0) {
             safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
             gimli->errflag = 1;
-            return (S_FAIL);
+            return (G_FAIL);
         }
     }
 
     if (fclose(file) != 0) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // set struct fields
@@ -278,7 +228,7 @@ get_loadavg(gimli_t *gimli)
         gimli->cpu_loadavg[i] = cpu_loadavg[i];
     }
 
-    return (S_PASS);
+    return (G_PASS);
 }
 
 /**
@@ -307,21 +257,21 @@ get_uptime(gimli_t *gimli)
     if ((file = fopen(PROC_UPTIME, "r")) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // read first line of /proc/uptime
     if (fgets(buffer, sizeof (buffer), file) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     // first value is uptime
     if ((cp = strtok(buffer, " ")) == NULL) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     errno = 0; // see NOTES section in strtoul(3)
@@ -329,16 +279,16 @@ get_uptime(gimli_t *gimli)
     if (errno != 0) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
     if (fclose(file) != 0) {
         safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
         gimli->errflag = 1;
-        return (S_FAIL);
+        return (G_FAIL);
     }
 
-    return (S_PASS);
+    return (G_PASS);
 }
 
 /**
@@ -357,7 +307,7 @@ get_meminfo(gimli_t *gimli)
    if (sysinfo(&meminfo) < 0) {
        safe_strncpy(gimli->errtxt, strerror(errno), ERRTXT_LEN);
        gimli->errflag = 1;
-       return (S_FAIL);
+       return (G_FAIL);
    }
 
    gimli->meminfo[TOTAL_RAM]  = (meminfo.totalram * meminfo.mem_unit) / 1024;
@@ -371,63 +321,5 @@ get_meminfo(gimli_t *gimli)
    gimli->meminfo[MEM_UNIT]   = meminfo.mem_unit;
    gimli->procs = meminfo.procs;
 
-   return (S_PASS);
-}
-
-int
-main()
-{
-    gimli_t           gimli;
-    struct timespec   start, stop;
-    uint64_t          elapsed;
-
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    get_cpu_util(&gimli);
-    if (gimli.errflag) {
-        printf("get_cpu_util failed: %s\n", gimli.errtxt);
-        return (S_FAIL);
-    }
-    get_loadavg(&gimli);
-    if (gimli.errflag) {
-        printf("get_loadavg failed: %s\n", gimli.errtxt);
-        return (S_FAIL);
-    }
-    get_uptime(&gimli);
-    if (gimli.errflag) {
-        printf("get_uptime failed: %s\n", gimli.errtxt);
-        return (S_FAIL);
-    }
-    get_meminfo(&gimli);
-    if (gimli.errflag) {
-        printf("get_meminfo failed: %s\n", gimli.errtxt);
-        return (S_FAIL);
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
-
-    printf("cpu %.2Lf%% us, %.2Lf%% ni, %.2Lf%% sy, %.2Lf%% id, "
-            "%.2Lf%% wa\n",
-            gimli.cpu_util[CPU_USER], gimli.cpu_util[CPU_NICE],
-            gimli.cpu_util[CPU_SYSTEM], gimli.cpu_util[CPU_IDLE],
-            gimli.cpu_util[CPU_IOWAIT]);
-    printf("loadavg %.2Lf, %.2Lf, %.2Lf\n",
-            gimli.cpu_loadavg[LOAD_ONE],
-            gimli.cpu_loadavg[LOAD_FIVE],
-            gimli.cpu_loadavg[LOAD_TEN]);
-    printf("uptime %lu days, %02lu:%02lu\n", gimli.uptime/86400,
-            gimli.uptime/3600%24, gimli.uptime/60%60);
-    printf("totalram:  %lu kB\n", gimli.meminfo[TOTAL_RAM]);
-    printf("freeram:   %lu kB\n", gimli.meminfo[FREE_RAM]);
-    printf("sharedram: %lu kB\n", gimli.meminfo[SHARED_RAM]);
-    printf("bufferram: %lu kB\n", gimli.meminfo[BUFFER_RAM]);
-    printf("totalswap: %lu kB\n", gimli.meminfo[TOTAL_SWAP]);
-    printf("freeswap:  %lu kB\n", gimli.meminfo[FREE_SWAP]);
-    printf("totalhigh: %lu kB\n", gimli.meminfo[TOTAL_HIGH]);
-    printf("freehigh:  %lu kB\n", gimli.meminfo[FREE_HIGH]);
-    printf("number of current processes: %hu\n", gimli.procs);
-
-    elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
-            stop.tv_nsec - start.tv_nsec) / MILLION;
-    printf("took %llums\n", (long long unsigned int) elapsed);
-
-    return 0;
+   return (G_PASS);
 }

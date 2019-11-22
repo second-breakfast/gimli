@@ -8,8 +8,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
-#define SERVER_PORT 80
+#include "gimli.h"
+
+#define SERVER_PORT 8001
+
+// Global stats data, updated by mine() thread.
+gimli_t           gimli;
 
 void *
 thread_create_detached(void *(*func) (void *),
@@ -76,27 +82,67 @@ handle_connection(void *arg)
     char *index = NULL;
     char output[2046];
     FILE *p = NULL;
+    size_t size = sizeof (output);
 
     fd = *((int *) arg);
 
-    len = read(fd, buf, sizeof (buf));
-    if (len < 0) {
-        printf("Error reading from fd=%d\n", fd);
-        goto exit;
-    }
-
-    /* Write out system info from gimli. */
-    if ((p = popen("./a.out", "r")) != NULL) {
-        while (fgets(output, sizeof (output), p) != NULL) {
-            write(fd, output, strlen(output));
+    // printf("Handling connection...\n");
+    while (1) {
+        // len = recv(fd, buf, sizeof (buf), 0);
+        len = recv(fd, buf, sizeof (buf), MSG_DONTWAIT);
+        if (len <= 0) {
+            // printf("Error reading from fd=%d, %m\n", fd);
+            // printf("Closing connection to fd %d\n", fd);
+            break;
         }
-        pclose(p);
-        goto exit;
-    }
+        buf[len - 1] = '\0';
+        printf("  <- %s\n", buf);
 
-    /* Parse file and write it as response. */
-    // index = read_file("/tmp/gimli", &len);
-    // write(fd, index, len);
+        snprintf(output, size, "cpu %.2Lf%% us, %.2Lf%% ni, %.2Lf%% sy, %.2Lf%% id, "
+                "%.2Lf%% wa\n",
+                gimli.cpu_util[CPU_USER], gimli.cpu_util[CPU_NICE],
+                gimli.cpu_util[CPU_SYSTEM], gimli.cpu_util[CPU_IDLE],
+                gimli.cpu_util[CPU_IOWAIT]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "loadavg %.2Lf, %.2Lf, %.2Lf\n",
+                gimli.cpu_loadavg[LOAD_ONE],
+                gimli.cpu_loadavg[LOAD_FIVE],
+                gimli.cpu_loadavg[LOAD_TEN]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "uptime %lu days, %02lu:%02lu\n", gimli.uptime/86400,
+                gimli.uptime/3600%24, gimli.uptime/60%60);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "totalram:  %lu kB\n", gimli.meminfo[TOTAL_RAM]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "freeram:   %lu kB\n", gimli.meminfo[FREE_RAM]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "sharedram: %lu kB\n", gimli.meminfo[SHARED_RAM]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "bufferram: %lu kB\n", gimli.meminfo[BUFFER_RAM]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "totalswap: %lu kB\n", gimli.meminfo[TOTAL_SWAP]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "freeswap:  %lu kB\n", gimli.meminfo[FREE_SWAP]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "totalhigh: %lu kB\n", gimli.meminfo[TOTAL_HIGH]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "freehigh:  %lu kB\n", gimli.meminfo[FREE_HIGH]);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "number of current processes: %hu\n", gimli.procs);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+        printf("  -> replied\n");
+    }
 
 exit:
     if (fd > 0) {
@@ -113,8 +159,9 @@ handle_connections()
     int fd, newfd;
     struct sockaddr_in svr_addr, peer_addr;
     socklen_t peer_addr_size;
+    char ip[INET_ADDRSTRLEN];
 
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (fd == -1) {
         printf("Couldn't create socket: %m\n");
         exit(1);
@@ -138,7 +185,7 @@ handle_connections()
         close(fd);
         exit(1);
     }
-    printf("listening on port %d...\n", SERVER_PORT);
+    printf("Listening at 127.0.0.1:%d...\n", SERVER_PORT);
 
     /* Now we can accept incoming connections one
        at a time using accept(2) */
@@ -147,8 +194,11 @@ handle_connections()
                     &peer_addr_size))) {
         if (newfd != -1) {
             /* Deal with incoming connection... */
+            printf("Incoming connection from %s:%d, fd=%d\n", inet_ntoa(peer_addr.sin_addr),
+                    ntohs(peer_addr.sin_port), newfd);
+            int localfd = newfd;
             thread_create_detached(&handle_connection,
-                    (void *) &newfd);
+                    (void *) &localfd);
         }
     }
 
@@ -156,9 +206,38 @@ handle_connections()
     close(fd);
 }
 
+void *
+mine()
+{
+    while (1) {
+        get_cpu_util(&gimli);
+        if (gimli.errflag) {
+            printf("get_cpu_util failed: %s\n", gimli.errtxt);
+        }
+        get_loadavg(&gimli);
+        if (gimli.errflag) {
+            printf("get_loadavg failed: %s\n", gimli.errtxt);
+        }
+        get_uptime(&gimli);
+        if (gimli.errflag) {
+            printf("get_uptime failed: %s\n", gimli.errtxt);
+        }
+        get_meminfo(&gimli);
+        if (gimli.errflag) {
+            printf("get_meminfo failed: %s\n", gimli.errtxt);
+        }
+        sleep(1);
+    }
+}
+
 int
 main()
 {
+
+    // Start the mine thread to gather system information.
+    thread_create_detached(&mine, NULL);
+
+    // Start main program loop.
     handle_connections();
 
     /* Never reached. */
