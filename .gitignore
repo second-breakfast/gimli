@@ -6,4 +6,4 @@ a.out
 cscope.files
 cscope.out
 tags
-gimli/gimli
+src/gimli

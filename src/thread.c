@@ -166,7 +166,8 @@ handle_connections()
         printf("Couldn't create socket: %m\n");
         exit(1);
     }
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof (int)) < 0) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 },
+                sizeof (int)) < 0) {
         printf("setsockopt(SO_REUSEADDR) failed\n");
         exit(1);
     }
@@ -198,8 +199,9 @@ handle_connections()
                     &peer_addr_size))) {
         if (newfd != -1) {
             /* Deal with incoming connection... */
-            printf("Incoming connection from %s:%d, fd=%d\n", inet_ntoa(peer_addr.sin_addr),
-                    ntohs(peer_addr.sin_port), newfd);
+            printf("Incoming connection from %s:%d, fd=%d\n",
+                    inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port),
+                    newfd);
             int localfd = newfd;
             thread_create_detached(&handle_connection,
                     (void *) &localfd);
@@ -211,21 +213,44 @@ handle_connections()
 }
 
 void *
-mine()
+gimli_mine_cpu()
 {
     while (1) {
         get_cpu_util(&gimli);
         if (gimli.errflag) {
             printf("get_cpu_util failed: %s\n", gimli.errtxt);
         }
+    }
+}
+
+void *
+gimli_mine_load()
+{
+    while (1) {
         get_loadavg(&gimli);
         if (gimli.errflag) {
             printf("get_loadavg failed: %s\n", gimli.errtxt);
         }
+        sleep(1);
+    }
+}
+
+void *
+gimli_mine_uptime()
+{
+    while (1) {
         get_uptime(&gimli);
         if (gimli.errflag) {
             printf("get_uptime failed: %s\n", gimli.errtxt);
         }
+        sleep(1);
+    }
+}
+
+void *
+gimli_mine_meminfo()
+{
+    while (1) {
         get_meminfo(&gimli);
         if (gimli.errflag) {
             printf("get_meminfo failed: %s\n", gimli.errtxt);
@@ -238,8 +263,11 @@ int
 main()
 {
 
-    // Start the mine thread to gather system information.
-    thread_create_detached(&mine, NULL);
+    // Start the mine threads to gather system information.
+    thread_create_detached(&gimli_mine_cpu, NULL);
+    thread_create_detached(&gimli_mine_load, NULL);
+    thread_create_detached(&gimli_mine_uptime, NULL);
+    thread_create_detached(&gimli_mine_meminfo, NULL);
 
     // Start main program loop.
     handle_connections();
