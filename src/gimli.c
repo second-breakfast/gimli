@@ -88,7 +88,7 @@ get_cpu_util(gimli_t *gimli)
         return (G_FAIL);
     }
 
-    usleep(1000000); // wait 1000ms == 1s
+    usleep(3000000); // wait 3000ms == 3s
 
     // second poll
     if ((file = fopen(PROC_STAT, "r")) == NULL) {
