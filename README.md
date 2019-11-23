@@ -1,7 +1,7 @@
 # gimli
 Mines for system information.
 
-> "And my axe!" -Gimli
+> "AND MY AXE!" -Gimli
 
 ## Install gimli
 
