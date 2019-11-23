@@ -251,9 +251,11 @@ class Gimli():
             if pid == 0:
                 # Get the pid of this child process.
                 t = os.getpid()
-                self.log('Booting worker gimli-{}'.format(t))
-                # TODO: assign worker to specific cpu
-                # os.sched_setaffinity(0, {0}) # current process on 0-th core
+                # Restrict current process to specific CPU core. We use the
+                # (worker number mod # cores) to ensure an even distribution.
+                os.sched_setaffinity(0, {i % len(os.sched_getaffinity(0))})
+                self.log('Booting worker gimli-{} on CPU core {}'.format(t,
+                    os.sched_getaffinity(0)))
                 try:
                     while 1:
                         try:

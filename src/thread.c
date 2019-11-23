@@ -83,6 +83,10 @@ handle_connection(void *arg)
     char output[2046];
     FILE *p = NULL;
     size_t size = sizeof (output);
+    struct timespec   start, stop;
+    uint64_t          elapsed;
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
     fd = *((int *) arg);
 
@@ -96,7 +100,8 @@ handle_connection(void *arg)
             break;
         }
         buf[len - 1] = '\0';
-        printf("  <- %s\n", buf);
+
+        printf("\n  <- \n%s\n", buf);
 
         snprintf(output, size, "cpu %.2Lf%% us, %.2Lf%% ni, %.2Lf%% sy, %.2Lf%% id, "
                 "%.2Lf%% wa\n",
@@ -141,7 +146,12 @@ handle_connection(void *arg)
 
         snprintf(output, size, "number of current processes: %hu\n", gimli.procs);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-        printf("  -> replied\n");
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
+        elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
+                stop.tv_nsec - start.tv_nsec) / MILLION;
+
+        printf("  -> replied in %llums\n", (long long unsigned int) elapsed);
     }
 
 exit:
