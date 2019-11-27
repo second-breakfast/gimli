@@ -1,3 +1,25 @@
+/*
+ * gimli.h
+ *   Headers and definitions for gimli.c and thread.c
+ */
+
+#ifndef GIMLI_H
+#define GIMLI_H
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <pthread.h>
+#include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define PROC_STAT    "/proc/stat"
 #define PROC_LOADAVG "/proc/loadavg"
 #define PROC_UPTIME  "/proc/uptime"
@@ -5,6 +27,8 @@
 #define ERRTXT_LEN   256
 #define MILLION      1000000L
 #define BILLION      1000000000L
+
+#define SERVER_PORT 8001
 
 enum cpu_util {
     CPU_USER       = 0,
@@ -55,3 +79,5 @@ status_t get_cpu_util(gimli_t *gimli);
 status_t get_loadavg(gimli_t *gimli);
 status_t get_uptime(gimli_t *gimli);
 status_t get_meminfo(gimli_t *gimli);
+
+#endif /* GIMLI_H */

@@ -1,20 +1,12 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
-#include <unistd.h>
-#include <pthread.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+/*
+ * thread.c
+ *   Handle connections to the gimli daemon.
+ */
 
 #include "gimli.h"
 
-#define SERVER_PORT 8001
 
-// Global stats data, updated by mine() thread.
+// Global stats data, updated by mine() threads.
 gimli_t           gimli;
 
 void *
@@ -33,44 +25,45 @@ thread_create_detached(void *(*func) (void *),
 char *
 read_file(const char *path, int *len)
 {
-    FILE *f = NULL;
     int fsize;
+    FILE *f = NULL;
     char *buf = NULL;
 
-    if ((f = fopen(path, "r")) != NULL) {
-
-        /* Go to the end of the file. */
-        if (fseek(f, 0L, SEEK_END) == 0) {
-
-            /* Get the size of the file. */
-            fsize = ftell(f);
-            if (fsize == -1) {
-                goto exit;
-            }
-
-            /* Allocate our buffer to that size. */
-            buf = malloc(sizeof (char) * (fsize + 1));
-
-            /* Go back to the start of the file. */
-            if (fseek(f, 0L, SEEK_SET) != 0) {
-                goto exit;
-            }
-
-            /* Read the entire file into memory. */
-            *len = fread(buf, sizeof(char), fsize, f);
-            if (ferror(f) != 0) {
-                goto exit;
-            } else {
-                buf[(*len) + 1] = '\0';
-            }
-        }
+    f = fopen(path, "r");
+    if (f == NULL) {
+        goto exit;
     }
+
+    /* Go to the end of the file. */
+    if (fseek(f, 0L, SEEK_END) != 0) {
+        goto exit;
+    }
+
+    /* Get the size of the file. */
+    fsize = ftell(f);
+    if (fsize == -1) {
+        goto exit;
+    }
+
+    /* Allocate our buffer to that size. */
+    buf = malloc(sizeof (char) * (fsize + 1));
+
+    /* Go back to the start of the file. */
+    if (fseek(f, 0L, SEEK_SET) != 0) {
+        goto exit;
+    }
+
+    /* Read the entire file into memory. */
+    *len = fread(buf, sizeof(char), fsize, f);
+    if (ferror(f) != 0) {
+        goto exit;
+    }
+    buf[(*len) + 1] = '\0';
 
 exit:
     if (f != NULL) {
         fclose(f);
     }
-
     return (buf);
 }
 
