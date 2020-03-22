@@ -73,7 +73,7 @@ get_cpu_util(gimli_t *gimli)
  *
  *    1) load avg of last 1 minute
  *    2) load avg of last 5 minutes
- *    3) load avg of last 10 minutes
+ *    3) load avg of last 15 minutes
  *
  * More info about these values can be found in proc(5).
  *
@@ -90,35 +90,6 @@ get_loadavg(gimli_t *gimli)
     if (sscanf(buf, LOAD_FMT, &gimli->load[0], &gimli->load[1], &gimli->load[2]) < 2)
         return (G_FAIL);
     if (fclose(f) != 0) return (G_FAIL);
-    return (G_OK);
-}
-
-/**
- * get_uptime - get system uptime in seconds
- *
- * Reads first value from /proc/uptime and sets gimli.uptime.
- *
- * To print in the form: 'X days, Y:Z'
- * where X is days, Y is hours, and Z is minutes:
- *
- *     printf("uptime %lu days, %01lu:%02lu\n", gimli.uptime/86400,
- *               gimli.uptime/3600%24, gimli.uptime/60%60);
- *
- * For more info see proc(5).
- *
- */
-status_t
-get_uptime(gimli_t *gimli)
-{
-    FILE          *f;
-    char           buf[256];
-
-    // Read first line of /proc/uptime, first value is uptime.
-    if ((f = fopen(PROC_UPTIME, "r")) == NULL) return (G_FAIL);
-    if (fgets(buf, sizeof (buf), f) == NULL) return (G_FAIL);
-    if (sscanf(buf, "%d", &gimli->uptime) < 1) return (G_FAIL);
-    if (fclose(f) != 0) return (G_FAIL);
-
     return (G_OK);
 }
 
@@ -149,6 +120,7 @@ get_meminfo(gimli_t *gimli)
    gimli->meminfo[FREE_HIGH]  = (meminfo.freehigh * meminfo.mem_unit) / 1024;
    gimli->meminfo[MEM_UNIT]   = meminfo.mem_unit;
    gimli->procs = meminfo.procs;
+   gimli->uptime = meminfo.uptime;
 
    return (G_OK);
 }
@@ -204,7 +176,7 @@ handle_connection(void *arg)
         snprintf(output, size, "load average %.2f, %.2f, %.2f\n",
                 gimli.load[LOAD_ONE],
                 gimli.load[LOAD_FIVE],
-                gimli.load[LOAD_TEN]);
+                gimli.load[LOAD_FIFTEEN]);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 
         snprintf(output, size, "uptime %lu days, %01lu:%02lu\n", gimli.uptime/86400,
@@ -236,6 +208,9 @@ handle_connection(void *arg)
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 
         snprintf(output, size, "number of current processes: %hu\n", gimli.procs);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+
+        snprintf(output, size, "number of cpu's: %d\n", gimli.ncpus);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
@@ -316,6 +291,7 @@ handle_connections()
 void *
 gimli_mine_cpu()
 {
+    gimli.ncpus = sysconf(_SC_NPROCESSORS_CONF);
     while (1) {
         if (get_cpu_util(&gimli) != G_OK) {
             printf("get_cpu_util failed\n");
@@ -329,17 +305,6 @@ gimli_mine_load()
     while (1) {
         if (get_loadavg(&gimli) != G_OK) {
             printf("get_loadavg failed\n");
-        }
-        sleep(1);
-    }
-}
-
-void *
-gimli_mine_uptime()
-{
-    while (1) {
-        if (get_uptime(&gimli) != G_OK) {
-            printf("get_uptime failed\n");
         }
         sleep(1);
     }
@@ -362,7 +327,6 @@ main()
     /* Start the mine threads to gather system information. */
     thread_create_detached(&gimli_mine_cpu, NULL);
     thread_create_detached(&gimli_mine_load, NULL);
-    thread_create_detached(&gimli_mine_uptime, NULL);
     thread_create_detached(&gimli_mine_meminfo, NULL);
 
     /* Start main program loop. */

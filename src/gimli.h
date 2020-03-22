@@ -45,7 +45,7 @@ enum cpu_util {
 enum cpu_loadavg {
     LOAD_ONE       = 0,
     LOAD_FIVE      = 1,
-    LOAD_TEN       = 2,
+    LOAD_FIFTEEN   = 2,
     LOAD_NRSTATS   = 3
 };
 
@@ -72,9 +72,11 @@ typedef struct {
 } gimli_cpu_t;
 
 typedef struct {
+    int            ncpus;                     // number of cpu's
     long double    cpu[CPU_NRSTATS];          // in percentages
     float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
     unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes
+    double    memuse;                         // system memory usage as percent
     unsigned long  uptime;                    // system uptime in seconds
     unsigned short procs;                     // number of current processes
 } gimli_t;
