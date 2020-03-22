@@ -72,7 +72,7 @@ typedef struct {
 } gimli_cpu_t;
 
 typedef struct {
-    int            ncpus;                     // number of cpu's
+    int            cpus;                      // number of cpu's
     long double    cpu[CPU_NRSTATS];          // in percentages
     float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
     unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes

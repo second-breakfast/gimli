@@ -167,6 +167,26 @@ handle_connection(void *arg)
 
         printf("\n  <- \n%s\n", buf);
 
+        snprintf(output, size,
+                "{\n" \
+                "    \"cpu\": {\n" \
+                "        \"us\": %.1Lf,\n" \
+                "        \"sy\": %.1Lf,\n" \
+                "        \"id\": %.1Lf,\n" \
+                "        \"wa\": %.1Lf,\n" \
+                "        \"ni\": %.1Lf,\n" \
+                "    },\n" \
+                "    \"load\": [%.2f, %.2f, %.2f],\n" \
+                "    \"uptime\": [\"%lu\", \"%01lu:%02lu\"],\n" \
+                "    \"procs\": %hu,\n" \
+                "    \"cpus\": %d,\n" \
+                "}\n",
+                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
+                gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
+                gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
+                gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus);
+        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
+#if 0
         snprintf(output, size, "cpu %.1Lf us, %.1Lf sy, %.1Lf id, %.1Lf wa, %.1Lf ni\n",
                 gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
                 gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
@@ -210,9 +230,9 @@ handle_connection(void *arg)
         snprintf(output, size, "number of current processes: %hu\n", gimli.procs);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 
-        snprintf(output, size, "number of cpu's: %d\n", gimli.ncpus);
+        snprintf(output, size, "number of cpu's: %d\n", gimli.cpus);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
+#endif
         clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
         elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
                 stop.tv_nsec - start.tv_nsec) / MILLION;
@@ -291,7 +311,7 @@ handle_connections()
 void *
 gimli_mine_cpu()
 {
-    gimli.ncpus = sysconf(_SC_NPROCESSORS_CONF);
+    gimli.cpus = sysconf(_SC_NPROCESSORS_CONF);
     while (1) {
         if (get_cpu_util(&gimli) != G_OK) {
             printf("get_cpu_util failed\n");
