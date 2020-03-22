@@ -1,2 +1,2 @@
 all:
-	gcc	gimli.c thread.c -lpthread -g -o gimli
+	gcc	gimli.c -lpthread -g -o gimli

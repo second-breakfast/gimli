@@ -20,15 +20,18 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+
 #define PROC_STAT    "/proc/stat"
 #define PROC_LOADAVG "/proc/loadavg"
 #define PROC_UPTIME  "/proc/uptime"
 
-#define ERRTXT_LEN   256
 #define MILLION      1000000L
 #define BILLION      1000000000L
 
-#define SERVER_PORT 8001
+#define SERVER_PORT  8001
+
+#define CPU_FMT      "cpu %Lu %Lu %Lu %Lu %Lu"
+#define LOAD_FMT     "%f %f %f"
 
 enum cpu_util {
     CPU_USER       = 0,
@@ -60,21 +63,22 @@ enum meminfo {
 };
 
 typedef enum {
-    G_PASS         = 0,
+    G_OK           = 0,
     G_FAIL         = 1
 } status_t;
 
 typedef struct {
-    unsigned       errflag:1;                 // 0 - ok (default) , 1 - bad
-    char           errtxt[ERRTXT_LEN];        // i.e. strerror(errno)
-    long double    cpu_util[CPU_NRSTATS];     // in percentages
-    long double    cpu_loadavg[LOAD_NRSTATS]; // straight from /proc/loadavg
+    unsigned long long u, n, s, i, w;
+} gimli_cpu_t;
+
+typedef struct {
+    long double    cpu[CPU_NRSTATS];          // in percentages
+    float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
     unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes
     unsigned long  uptime;                    // system uptime in seconds
     unsigned short procs;                     // number of current processes
 } gimli_t;
 
-void safe_strncpy(char *dest, char *src, unsigned n);
 status_t get_cpu_util(gimli_t *gimli);
 status_t get_loadavg(gimli_t *gimli);
 status_t get_uptime(gimli_t *gimli);
