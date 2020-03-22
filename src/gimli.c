@@ -101,7 +101,7 @@ get_loadavg(gimli_t *gimli)
  * To print in the form: 'X days, Y:Z'
  * where X is days, Y is hours, and Z is minutes:
  *
- *     printf("uptime %lu days, %02lu:%02lu\n", gimli.uptime/86400,
+ *     printf("uptime %lu days, %01lu:%02lu\n", gimli.uptime/86400,
  *               gimli.uptime/3600%24, gimli.uptime/60%60);
  *
  * For more info see proc(5).
