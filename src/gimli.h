@@ -1,6 +1,6 @@
 /*
  * gimli.h
- *   Headers and definitions for gimli.c and thread.c
+ *   Headers and definitions for gimli.c
  */
 
 #ifndef GIMLI_H
@@ -83,7 +83,6 @@ typedef struct {
 
 status_t get_cpu_util(gimli_t *gimli);
 status_t get_loadavg(gimli_t *gimli);
-status_t get_uptime(gimli_t *gimli);
 status_t get_meminfo(gimli_t *gimli);
 
 #endif /* GIMLI_H */
