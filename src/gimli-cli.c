@@ -50,7 +50,7 @@ main(int argc, char **argv)
 
     while (1) {
         printf("%s:%s> ", host, port);
-        if (getline(&input, &(int) { 0 }, stdin) == -1) {
+        if (getline(&input, &(size_t) { 0 }, stdin) == -1) {
             return (2);
         }
 
