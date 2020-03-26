@@ -54,9 +54,15 @@ main(int argc, char **argv)
             return (2);
         }
 
-        if (strncmp(input, "quit", strlen("quit")) == 0 ||
-            strncmp(input, "exit", strlen("exit")) == 0) {
+        if (strcmp(input, "quit\n") == 0 ||
+            strcmp(input, "exit\n") == 0) {
+            free(input);
             return (0);
+        }
+
+        if (strcmp(input, "\n") == 0) {
+            free(input);
+            continue;
         }
 
         if (send(fd, input, strlen(input), 0) < 0) {

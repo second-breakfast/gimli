@@ -1,7 +1,7 @@
-all:
+gimli:
 	gcc	gimli.c -lpthread -O3 -o gimli
 
-cli:
+gimli-cli:
 	gcc	gimli-cli.c -o gimli-cli
 
 debug:
