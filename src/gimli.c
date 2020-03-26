@@ -125,6 +125,18 @@ get_meminfo(gimli_t *gimli)
    return (G_OK);
 }
 
+status_t
+get_disk_space(gimli_t *gimli)
+{
+    struct statvfs stat;
+
+    if (statvfs("/", &stat) != 0) {
+        return (G_FAIL);
+    }
+    gimli->disk = (stat.f_bsize * stat.f_bavail) / 1024.0/1024.0/1024.0;
+    return (G_OK);
+}
+
 void *
 thread_create_detached(void *(*func) (void *),
         void *arg)
@@ -179,12 +191,14 @@ handle_connection(void *arg)
                 "\"load\":[%.2f, %.2f, %.2f]," \
                 "\"uptime\":[%lu, %01lu, %02lu]," \
                 "\"procs\":%hu," \
-                "\"cpus\":%d" \
-                "}\n\n",
+                "\"cpus\":%d," \
+                "\"disk\":%.1Lf" \
+                "}\n",
                 gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
                 gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
                 gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
-                gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus);
+                gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus,
+                gimli.disk);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 #if 0
         snprintf(output, size, "cpu %.1Lf us, %.1Lf sy, %.1Lf id, %.1Lf wa, %.1Lf ni\n",
@@ -342,6 +356,17 @@ gimli_mine_meminfo()
     }
 }
 
+void *
+gimli_mine_disk()
+{
+    while (1) {
+        if (get_disk_space(&gimli) != G_OK) {
+            printf("get_disk_space failed\n");
+        }
+        sleep(1);
+    }
+}
+
 int
 main()
 {
@@ -349,6 +374,7 @@ main()
     thread_create_detached(&gimli_mine_cpu, NULL);
     thread_create_detached(&gimli_mine_load, NULL);
     thread_create_detached(&gimli_mine_meminfo, NULL);
+    thread_create_detached(&gimli_mine_disk, NULL);
 
     /* Start main program loop. */
     handle_connections();

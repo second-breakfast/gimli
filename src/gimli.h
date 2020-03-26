@@ -17,6 +17,7 @@
 #include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/statvfs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -76,14 +77,16 @@ typedef struct {
     long double    cpu[CPU_NRSTATS];          // in percentages
     float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
     unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes
-    double    memuse;                         // system memory usage as percent
+    double         memuse;                    // system memory usage as percent
     unsigned long  uptime;                    // system uptime in seconds
     unsigned short procs;                     // number of current processes
+    double         disk;                      // free disk space on / in GiB
 } gimli_t;
 
 status_t get_cpu_util(gimli_t *gimli);
 status_t get_loadavg(gimli_t *gimli);
 status_t get_uptime(gimli_t *gimli);
 status_t get_meminfo(gimli_t *gimli);
+status_t get_disk_space(gimli_t *gimli);
 
 #endif /* GIMLI_H */
