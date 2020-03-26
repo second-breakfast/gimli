@@ -14,8 +14,8 @@ gimli_connect(char *host, int port)
     }
 
     server.sin_addr.s_addr = inet_addr(host);
-	server.sin_family = AF_INET;
-	server.sin_port = htons(port);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(port);
 
     if (connect(fd, (struct sockaddr *) &server, sizeof (server)) < 0) {
         return (-1);
