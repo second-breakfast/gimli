@@ -179,26 +179,74 @@ handle_connection(void *arg)
 
         // printf("\n  <- \n%s\n", buf);
 
-        snprintf(output, size,
-                "{" \
-                "\"cpu\":{" \
-                "\"us\":%.1Lf," \
-                "\"sy\":%.1Lf," \
-                "\"id\":%.1Lf," \
-                "\"wa\":%.1Lf," \
-                "\"ni\":%.1Lf" \
-                "}," \
-                "\"load\":[%.2f, %.2f, %.2f]," \
-                "\"uptime\":[%lu, %01lu, %02lu]," \
-                "\"procs\":%hu," \
-                "\"cpus\":%d," \
-                "\"disk\":%.1Lf" \
-                "}\n",
-                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
-                gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
-                gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
-                gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus,
-                gimli.disk);
+        if (strcmp(buf, "cpu") == 0) {
+            snprintf(output, size,
+                    "{" \
+                    "\"cpu\":{" \
+                            "\"us\":%.1Lf," \
+                            "\"sy\":%.1Lf," \
+                            "\"id\":%.1Lf," \
+                            "\"wa\":%.1Lf," \
+                            "\"ni\":%.1Lf" \
+                        "}" \
+                    "}\n",
+                    gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
+                    gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE]);
+        } else if (strcmp(buf, "load") == 0) {
+            snprintf(output, size,
+                    "{" \
+                        "\"load\":[%.2f, %.2f, %.2f]" \
+                    "}\n",
+                    gimli.load[LOAD_ONE], gimli.load[LOAD_FIVE],
+                    gimli.load[LOAD_FIFTEEN]);
+        } else if (strcmp(buf, "uptime") == 0) {
+            snprintf(output, size,
+                    "{" \
+                        "\"uptime\":[%lu, %01lu, %02lu]" \
+                    "}\n",
+                    gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60);
+        } else if (strcmp(buf, "procs") == 0) {
+            snprintf(output, size,
+                    "{" \
+                        "\"procs\":%hu" \
+                    "}\n",
+                    gimli.procs);
+        } else if (strcmp(buf, "cpus") == 0) {
+            snprintf(output, size,
+                    "{" \
+                        "\"cpus\":%d" \
+                    "}\n",
+                    gimli.cpus);
+        } else if (strcmp(buf, "disk") == 0) {
+            snprintf(output, size,
+                    "{" \
+                        "\"disk\":%.1Lf" \
+                    "}\n",
+                    gimli.disk);
+        } else if (strcmp(buf, "gimli") == 0) {
+            snprintf(output, size,
+                    "{" \
+                    "\"cpu\":{" \
+                            "\"us\":%.1Lf," \
+                            "\"sy\":%.1Lf," \
+                            "\"id\":%.1Lf," \
+                            "\"wa\":%.1Lf," \
+                            "\"ni\":%.1Lf" \
+                        "}," \
+                        "\"load\":[%.2f, %.2f, %.2f]," \
+                        "\"uptime\":[%lu, %01lu, %02lu]," \
+                        "\"procs\":%hu," \
+                        "\"cpus\":%d," \
+                        "\"disk\":%.1Lf" \
+                    "}\n",
+                    gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
+                    gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
+                    gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
+                    gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus,
+                    gimli.disk);
+        } else {
+            snprintf(output, size, "{\"status\": 1}\n");
+        }
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 #if 0
         snprintf(output, size, "cpu %.1Lf us, %.1Lf sy, %.1Lf id, %.1Lf wa, %.1Lf ni\n",
