@@ -150,37 +150,37 @@ handle_connection(void *arg)
     struct timespec   start, stop;
     uint64_t          elapsed;
 
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
     fd = *((int *) arg);
 
     // printf("Handling connection...\n");
     while (1) {
-        // len = recv(fd, buf, sizeof (buf), 0);
-        len = recv(fd, buf, sizeof (buf), MSG_DONTWAIT);
-        if (len <= 0) {
-            // printf("Error reading from fd=%d, %m\n", fd);
+        len = recv(fd, buf, sizeof (buf), 0);
+        // len = recv(fd, buf, sizeof (buf), MSG_DONTWAIT);
+        if (len < 0) {
+            printf("Error reading from fd=%d, %m\n", fd);
             // printf("Closing connection to fd %d\n", fd);
             break;
         }
         buf[len - 1] = '\0';
 
-        printf("\n  <- \n%s\n", buf);
+        // printf("\n  <- \n%s\n", buf);
 
         snprintf(output, size,
-                "{\n" \
-                "    \"cpu\": {\n" \
-                "        \"us\": %.1Lf,\n" \
-                "        \"sy\": %.1Lf,\n" \
-                "        \"id\": %.1Lf,\n" \
-                "        \"wa\": %.1Lf,\n" \
-                "        \"ni\": %.1Lf,\n" \
-                "    },\n" \
-                "    \"load\": [%.2f, %.2f, %.2f],\n" \
-                "    \"uptime\": [\"%lu\", \"%01lu:%02lu\"],\n" \
-                "    \"procs\": %hu,\n" \
-                "    \"cpus\": %d,\n" \
-                "}\n",
+                "{" \
+                "\"cpu\":{" \
+                "\"us\":%.1Lf," \
+                "\"sy\":%.1Lf," \
+                "\"id\":%.1Lf," \
+                "\"wa\":%.1Lf," \
+                "\"ni\":%.1Lf" \
+                "}," \
+                "\"load\":[%.2f, %.2f, %.2f]," \
+                "\"uptime\":[%lu, %01lu, %02lu]," \
+                "\"procs\":%hu," \
+                "\"cpus\":%d" \
+                "}\n\n",
                 gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
                 gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
                 gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
@@ -233,11 +233,11 @@ handle_connection(void *arg)
         snprintf(output, size, "number of cpu's: %d\n", gimli.cpus);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
 #endif
-        clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
-        elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
-                stop.tv_nsec - start.tv_nsec) / MILLION;
+        // clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
+        // elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
+                // stop.tv_nsec - start.tv_nsec) / MILLION;
 
-        printf("  -> replied in %llums\n", (long long unsigned int) elapsed);
+        // printf("  -> replied in %llums\n", (long long unsigned int) elapsed);
     }
 
 exit:
@@ -257,7 +257,8 @@ handle_connections()
     socklen_t peer_addr_size;
     char ip[INET_ADDRSTRLEN];
 
-    fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    // fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         printf("Couldn't create socket: %m\n");
         exit(1);
@@ -299,8 +300,8 @@ handle_connections()
                     inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port),
                     newfd);
             int localfd = newfd;
-            thread_create_detached(&handle_connection,
-                    (void *) &localfd);
+            // handle_connection((void *) &localfd);
+            thread_create_detached(&handle_connection, (void *) &localfd);
         }
     }
 
