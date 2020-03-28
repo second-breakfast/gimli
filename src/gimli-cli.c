@@ -47,6 +47,10 @@ main(int argc, char **argv)
         port = strdup("8001");
         fd = gimli_connect("127.0.0.1", 8001);
     }
+    if (fd < 0) {
+        printf("Error: could not connect to gimli server\n");
+        exit(1);
+    }
 
     while (1) {
         printf("%s:%s> ", host, port);
