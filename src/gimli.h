@@ -10,14 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <time.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/statvfs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -73,19 +71,17 @@ typedef struct {
 } gimli_cpu_t;
 
 typedef struct {
-    int            cpus;                      // number of cpu's
+    int            cores;                     // number of cpu's
     long double    cpu[CPU_NRSTATS];          // in percentages
     float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
     unsigned long  meminfo[MEM_NRSTATS];      // system memory info in bytes
     double         memuse;                    // system memory usage as percent
     unsigned long  uptime;                    // system uptime in seconds
     unsigned short procs;                     // number of current processes
-    double         disk;                      // free disk space on / in GiB
 } gimli_t;
 
 status_t get_cpu_util(gimli_t *gimli);
 status_t get_loadavg(gimli_t *gimli);
 status_t get_meminfo(gimli_t *gimli);
-status_t get_disk_space(gimli_t *gimli);
 
 #endif /* GIMLI_H */

@@ -125,29 +125,16 @@ get_meminfo(gimli_t *gimli)
    return (G_OK);
 }
 
-status_t
-get_disk_space(gimli_t *gimli)
-{
-    struct statvfs stat;
-
-    if (statvfs("/", &stat) != 0) {
-        return (G_FAIL);
-    }
-    gimli->disk = (stat.f_bsize * stat.f_bavail) / 1024.0/1024.0/1024.0;
-    return (G_OK);
-}
-
 void *
-thread_create_detached(void *(*func) (void *),
-        void *arg)
+thread_create_detached(void *(*func) (void *), void *arg)
 {
     pthread_t tid;
     pthread_attr_t attr;
 
     pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr,
-            PTHREAD_CREATE_DETACHED);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&tid, &attr, func, arg);
+    return (void *) {0};
 }
 
 void *
@@ -157,28 +144,18 @@ handle_connection(void *arg)
     char buf[1024];
     char *index = NULL;
     char output[2046];
-    FILE *p = NULL;
     size_t size = sizeof (output);
-    struct timespec   start, stop;
-    uint64_t          elapsed;
-
-    // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
     fd = *((int *) arg);
-
-    // printf("Handling connection...\n");
     while (1) {
         len = recv(fd, buf, sizeof (buf), 0);
-        // len = recv(fd, buf, sizeof (buf), MSG_DONTWAIT);
-        if (len < 0) {
-            printf("Error reading from fd=%d, %m\n", fd);
-            // printf("Closing connection to fd %d\n", fd);
+        if (len <= 0) {
+            // They abruptly shut down the connection, just gracefully exit.
             break;
         }
-        buf[len - 1] = '\0';
+        buf[len] = '\0';
 
-        // printf("\n  <- \n%s\n", buf);
-
+        printf("<- '%s'\n", buf);
         if (strcmp(buf, "cpu") == 0) {
             snprintf(output, size,
                     "{" \
@@ -211,19 +188,13 @@ handle_connection(void *arg)
                         "\"procs\":%hu" \
                     "}\n",
                     gimli.procs);
-        } else if (strcmp(buf, "cpus") == 0) {
+        } else if (strcmp(buf, "cores") == 0) {
             snprintf(output, size,
                     "{" \
-                        "\"cpus\":%d" \
+                        "\"cores\":%d" \
                     "}\n",
-                    gimli.cpus);
-        } else if (strcmp(buf, "disk") == 0) {
-            snprintf(output, size,
-                    "{" \
-                        "\"disk\":%.1Lf" \
-                    "}\n",
-                    gimli.disk);
-        } else if (strcmp(buf, "gimli") == 0) {
+                    gimli.cores);
+        } else if (strcmp(buf, "all") == 0) {
             snprintf(output, size,
                     "{" \
                     "\"cpu\":{" \
@@ -236,79 +207,25 @@ handle_connection(void *arg)
                         "\"load\":[%.2f, %.2f, %.2f]," \
                         "\"uptime\":[%lu, %01lu, %02lu]," \
                         "\"procs\":%hu," \
-                        "\"cpus\":%d," \
-                        "\"disk\":%.1Lf" \
+                        "\"cores\":%d" \
                     "}\n",
                     gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
                     gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
                     gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
-                    gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cpus,
-                    gimli.disk);
+                    gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cores);
         } else {
             snprintf(output, size, "{\"status\": 1}\n");
         }
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-#if 0
-        snprintf(output, size, "cpu %.1Lf us, %.1Lf sy, %.1Lf id, %.1Lf wa, %.1Lf ni\n",
-                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
-                gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
-                gimli.cpu[CPU_NICE]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "load average %.2f, %.2f, %.2f\n",
-                gimli.load[LOAD_ONE],
-                gimli.load[LOAD_FIVE],
-                gimli.load[LOAD_FIFTEEN]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "uptime %lu days, %01lu:%02lu\n", gimli.uptime/86400,
-                gimli.uptime/3600%24, gimli.uptime/60%60);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "totalram:  %lu kB\n", gimli.meminfo[TOTAL_RAM]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "freeram:   %lu kB\n", gimli.meminfo[FREE_RAM]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "sharedram: %lu kB\n", gimli.meminfo[SHARED_RAM]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "bufferram: %lu kB\n", gimli.meminfo[BUFFER_RAM]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "totalswap: %lu kB\n", gimli.meminfo[TOTAL_SWAP]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "freeswap:  %lu kB\n", gimli.meminfo[FREE_SWAP]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "totalhigh: %lu kB\n", gimli.meminfo[TOTAL_HIGH]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "freehigh:  %lu kB\n", gimli.meminfo[FREE_HIGH]);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "number of current processes: %hu\n", gimli.procs);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-
-        snprintf(output, size, "number of cpu's: %d\n", gimli.cpus);
-        if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
-#endif
-        // clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
-        // elapsed = (BILLION * (stop.tv_sec - start.tv_sec) +
-                // stop.tv_nsec - start.tv_nsec) / MILLION;
-
-        // printf("  -> replied in %llums\n", (long long unsigned int) elapsed);
     }
 
-exit:
     if (fd > 0) {
         close(fd);
     }
     if (index != NULL) {
         free(index);
     }
+    return (void *) {0};
 }
 
 void *
@@ -317,7 +234,6 @@ handle_connections()
     int fd, newfd;
     struct sockaddr_in svr_addr, peer_addr;
     socklen_t peer_addr_size;
-    char ip[INET_ADDRSTRLEN];
 
     // fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -349,7 +265,7 @@ handle_connections()
         close(fd);
         exit(1);
     }
-    printf("Listening at 127.0.0.1:%d...\n", SERVER_PORT);
+    printf("Listening at: 127.0.0.1:%d (%d)\n", SERVER_PORT, (int) getpid());
 
     /* Now we can accept incoming connections one
        at a time using accept(2) */
@@ -362,19 +278,19 @@ handle_connections()
                     inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port),
                     newfd);
             int localfd = newfd;
-            // handle_connection((void *) &localfd);
             thread_create_detached(&handle_connection, (void *) &localfd);
         }
     }
 
     /* Never reached. */
     close(fd);
+    return (void *) {0};
 }
 
 void *
 gimli_mine_cpu()
 {
-    gimli.cpus = sysconf(_SC_NPROCESSORS_CONF);
+    gimli.cores = sysconf(_SC_NPROCESSORS_CONF);
     while (1) {
         if (get_cpu_util(&gimli) != G_OK) {
             printf("get_cpu_util failed\n");
@@ -404,17 +320,6 @@ gimli_mine_meminfo()
     }
 }
 
-void *
-gimli_mine_disk()
-{
-    while (1) {
-        if (get_disk_space(&gimli) != G_OK) {
-            printf("get_disk_space failed\n");
-        }
-        sleep(1);
-    }
-}
-
 int
 main()
 {
@@ -422,7 +327,6 @@ main()
     thread_create_detached(&gimli_mine_cpu, NULL);
     thread_create_detached(&gimli_mine_load, NULL);
     thread_create_detached(&gimli_mine_meminfo, NULL);
-    thread_create_detached(&gimli_mine_disk, NULL);
 
     /* Start main program loop. */
     handle_connections();

@@ -1,8 +1,13 @@
-all:
-	gcc gimli.c -lpthread -O3 -o gimli; gcc gimli-cli.c -o gimli-cli
+CFLAGS = -Wall -Werror
+
+all: gimli gimli-cli
+
+gimli: gimli.c -lpthread
+
+gimli-cli: gimli-cli.c
 
 debug:
-	gcc	gimli.c -lpthread -g -o gimli; gcc gimli-cli.c -g -o gimli-cli
+	gcc gimli.c -lpthread -g -o gimli && gcc gimli-cli.c -g -o gimli-cli
 
 clean:
-	rm gimli gimli-cli
+	rm -f gimli gimli-cli

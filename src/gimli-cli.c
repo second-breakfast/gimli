@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define GIMLI_HELP "gimli-cli (beta)\n" \
+                   "    \"cpu\"      to get cpu utilization\n" \
+                   "    \"load\"     to get load avg\n" \
+                   "    \"uptime\"   to get system uptime\n" \
+                   "    \"procs\"    to get number of current processes\n" \
+                   "    \"cores\"    to get number of CPU cores\n" \
+                   "    \"all\"      to see all data\n"
+
 int
 gimli_connect(char *host, int port)
 {
@@ -27,14 +35,13 @@ gimli_connect(char *host, int port)
 int
 main(int argc, char **argv)
 {
-    int fd;
-    int len;
+    int fd, len, noninteractive = 0;
     char buf[1024];
     char *input = NULL;
     char *host, *port;
 
-    if (!(argc == 3 || argc == 1)) {
-        printf("gimli-cli <host> <port>\n");
+    if (!(argc == 1 || argc == 2 || argc == 3)) {
+        printf("gimli-cli [ | <host> <port> | <cmd>]\n");
         return (1);
     }
 
@@ -46,27 +53,43 @@ main(int argc, char **argv)
         host = strdup("127.0.0.1");
         port = strdup("8001");
         fd = gimli_connect("127.0.0.1", 8001);
+        if (argc == 2) {
+            noninteractive = 1;
+        }
     }
+
     if (fd < 0) {
-        printf("Error: could not connect to gimli server\n");
+        printf("Could not connect to Gimli at %s:%s\n", host, port);
         exit(1);
     }
 
     while (1) {
-        printf("%s:%s> ", host, port);
-        if (getline(&input, &(size_t) { 0 }, stdin) == -1) {
-            return (2);
-        }
+        if (noninteractive) {
+            // Non-interfactive mode
+            input = strdup(argv[1]);
+        } else {
+            // Interactive mode
+            printf("%s:%s> ", host, port);
+            if (getline(&input, &(size_t) {0}, stdin) == -1) {
+                return (2);
+            }
+            input[strlen(input) - 1] = '\0';
 
-        if (strcmp(input, "quit\n") == 0 ||
-            strcmp(input, "exit\n") == 0) {
-            free(input);
-            return (0);
-        }
+            if (strcmp(input, "quit") == 0 ||
+                    strcmp(input, "exit") == 0) {
+                free(input);
+                return (0);
+            }
 
-        if (strcmp(input, "\n") == 0) {
-            free(input);
-            continue;
+            if (strcmp(input, "help") == 0) {
+                printf(GIMLI_HELP);
+                continue;
+            }
+
+            if (strcmp(input, "") == 0) {
+                free(input);
+                continue;
+            }
         }
 
         if (send(fd, input, strlen(input), 0) < 0) {
@@ -77,11 +100,14 @@ main(int argc, char **argv)
             free(input);
             return (4);
         }
+
         buf[len - 1] = '\0';
         printf("%s\n", buf);
         free(input);
-        // printf("%s\r", buf);
-        // fflush(stdout);
+
+        if (noninteractive) {
+            break;
+        }
     }
 
     free(host);
