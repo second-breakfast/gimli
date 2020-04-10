@@ -37,12 +37,12 @@ get_cpu_util(gimli_t *gimli)
     if (fgets(buf, sizeof (buf), f) == NULL) return (G_FAIL);
     if (sscanf(buf, CPU_FMT, &old.u, &old.n, &old.s, &old.i, &old.w) < 4)
         return (G_FAIL);
-    if (fclose(f) != 0) return (G_FAIL);
+    rewind(f);
+    fflush(f);
 
-    usleep(3000000); // wait 3000ms == 3s
+    usleep(3000000); // wait 3 seconds
 
     // Second poll.
-    if ((f = fopen(PROC_STAT, "r")) == NULL) return (G_FAIL);
     if (fgets(buf, sizeof (buf), f) == NULL) return (G_FAIL);
     if (sscanf(buf, CPU_FMT, &new.u, &new.n, &new.s, &new.i, &new.w) < 4)
         return (G_FAIL);
