@@ -87,8 +87,10 @@ get_loadavg(gimli_t *gimli)
     // Read first line of /proc/loadavg and get first 3 values.
     if ((f = fopen(PROC_LOADAVG, "r")) == NULL) return (G_FAIL);
     if (fgets(buf, sizeof (buf), f) == NULL) return (G_FAIL);
-    if (sscanf(buf, LOAD_FMT, &gimli->load[0], &gimli->load[1], &gimli->load[2]) < 2)
+    if (sscanf(buf, LOAD_FMT, &gimli->load[0], &gimli->load[1],
+                &gimli->load[2]) < 2) {
         return (G_FAIL);
+    }
     if (fclose(f) != 0) return (G_FAIL);
     return (G_OK);
 }
@@ -137,6 +139,74 @@ thread_create_detached(void *(*func) (void *), void *arg)
     return (void *) {0};
 }
 
+void
+gimli_json(const char *buf, char *output, size_t size)
+{
+    if (strcmp(buf, "cpu") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"cpu\":{" \
+                        "\"us\":%.1Lf," \
+                        "\"sy\":%.1Lf," \
+                        "\"id\":%.1Lf," \
+                        "\"wa\":%.1Lf," \
+                        "\"ni\":%.1Lf" \
+                    "}" \
+                "}\n",
+                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
+                gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
+                gimli.cpu[CPU_NICE]);
+    } else if (strcmp(buf, "load") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"load\":[%.2f, %.2f, %.2f]" \
+                "}\n",
+                gimli.load[LOAD_ONE], gimli.load[LOAD_FIVE],
+                gimli.load[LOAD_FIFTEEN]);
+    } else if (strcmp(buf, "uptime") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"uptime\":[%lu, %01lu, %02lu]" \
+                "}\n",
+                gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60);
+    } else if (strcmp(buf, "procs") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"procs\":%hu" \
+                "}\n",
+                gimli.procs);
+    } else if (strcmp(buf, "cores") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"cores\":%d" \
+                "}\n",
+                gimli.cores);
+    } else if (strcmp(buf, "all") == 0) {
+        snprintf(output, size,
+                "{" \
+                    "\"cpu\":{" \
+                        "\"us\":%.1Lf," \
+                        "\"sy\":%.1Lf," \
+                        "\"id\":%.1Lf," \
+                        "\"wa\":%.1Lf," \
+                        "\"ni\":%.1Lf" \
+                    "}," \
+                    "\"load\":[%.2f, %.2f, %.2f]," \
+                    "\"uptime\":[%lu, %01lu, %02lu]," \
+                    "\"procs\":%hu," \
+                    "\"cores\":%d" \
+                "}\n",
+                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
+                gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
+                gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
+                gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN],
+                gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60,
+                gimli.procs, gimli.cores);
+    } else {
+        snprintf(output, size, "{\"status\": 1}\n");
+    }
+}
+
 void *
 handle_connection(void *arg)
 {
@@ -150,72 +220,19 @@ handle_connection(void *arg)
     while (1) {
         len = recv(fd, buf, sizeof (buf), 0);
         if (len <= 0) {
-            // They abruptly shut down the connection, just gracefully exit.
+            // Connection lost, gracefully exit.
             break;
         }
-        buf[len] = '\0';
+
+        // Trim trailing newline.
+        if (buf[len-1] == '\n') {
+            buf[len-1] = '\0';
+        } else {
+            buf[len] = '\0';
+        }
 
         printf("<- '%s'\n", buf);
-        if (strcmp(buf, "cpu") == 0) {
-            snprintf(output, size,
-                    "{" \
-                    "\"cpu\":{" \
-                            "\"us\":%.1Lf," \
-                            "\"sy\":%.1Lf," \
-                            "\"id\":%.1Lf," \
-                            "\"wa\":%.1Lf," \
-                            "\"ni\":%.1Lf" \
-                        "}" \
-                    "}\n",
-                    gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
-                    gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE]);
-        } else if (strcmp(buf, "load") == 0) {
-            snprintf(output, size,
-                    "{" \
-                        "\"load\":[%.2f, %.2f, %.2f]" \
-                    "}\n",
-                    gimli.load[LOAD_ONE], gimli.load[LOAD_FIVE],
-                    gimli.load[LOAD_FIFTEEN]);
-        } else if (strcmp(buf, "uptime") == 0) {
-            snprintf(output, size,
-                    "{" \
-                        "\"uptime\":[%lu, %01lu, %02lu]" \
-                    "}\n",
-                    gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60);
-        } else if (strcmp(buf, "procs") == 0) {
-            snprintf(output, size,
-                    "{" \
-                        "\"procs\":%hu" \
-                    "}\n",
-                    gimli.procs);
-        } else if (strcmp(buf, "cores") == 0) {
-            snprintf(output, size,
-                    "{" \
-                        "\"cores\":%d" \
-                    "}\n",
-                    gimli.cores);
-        } else if (strcmp(buf, "all") == 0) {
-            snprintf(output, size,
-                    "{" \
-                    "\"cpu\":{" \
-                            "\"us\":%.1Lf," \
-                            "\"sy\":%.1Lf," \
-                            "\"id\":%.1Lf," \
-                            "\"wa\":%.1Lf," \
-                            "\"ni\":%.1Lf" \
-                        "}," \
-                        "\"load\":[%.2f, %.2f, %.2f]," \
-                        "\"uptime\":[%lu, %01lu, %02lu]," \
-                        "\"procs\":%hu," \
-                        "\"cores\":%d" \
-                    "}\n",
-                    gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM], gimli.cpu[CPU_IDLE],
-                    gimli.cpu[CPU_IOWAIT], gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
-                    gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN], gimli.uptime/86400,
-                    gimli.uptime/3600%24, gimli.uptime/60%60, gimli.procs, gimli.cores);
-        } else {
-            snprintf(output, size, "{\"status\": 1}\n");
-        }
+        gimli_json(buf, output, size);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
     }
 
@@ -235,7 +252,6 @@ handle_connections()
     struct sockaddr_in svr_addr, peer_addr;
     socklen_t peer_addr_size;
 
-    // fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         printf("Couldn't create socket: %m\n");
@@ -267,13 +283,11 @@ handle_connections()
     }
     printf("Listening at: 127.0.0.1:%d (%d)\n", SERVER_PORT, (int) getpid());
 
-    /* Now we can accept incoming connections one
-       at a time using accept(2) */
+    /* Accept connections. */
     peer_addr_size = sizeof(struct sockaddr_in);
     while ((newfd = accept(fd, (struct sockaddr *) &peer_addr,
                     &peer_addr_size))) {
         if (newfd != -1) {
-            /* Deal with incoming connection... */
             printf("Incoming connection from %s:%d, fd=%d\n",
                     inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port),
                     newfd);

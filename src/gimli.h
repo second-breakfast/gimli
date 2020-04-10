@@ -80,8 +80,4 @@ typedef struct {
     unsigned short procs;                     // number of current processes
 } gimli_t;
 
-status_t get_cpu_util(gimli_t *gimli);
-status_t get_loadavg(gimli_t *gimli);
-status_t get_meminfo(gimli_t *gimli);
-
 #endif /* GIMLI_H */
