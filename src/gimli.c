@@ -232,7 +232,7 @@ gimli_json(const char *buf, char *output, size_t size)
                 "}\n",
                 gimli.cores);
     } else if (strcmp(buf, "net") == 0) {
-        snprintf(output+strlen(output), size, "{\"netifs\":[");
+        snprintf(output, size, "{\"netifs\":[");
         for (int i=0; i<gimli.netifs; i++) {
             sprintf(output+strlen(output), IFNAME_JSON, gimli.net[i].ifname,
                     gimli.net[i].ipv4);
