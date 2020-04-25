@@ -127,6 +127,56 @@ get_meminfo(gimli_t *gimli)
    return (G_OK);
 }
 
+/**
+ * get_netif - get network interface information
+ *
+ * Detects all network interfaces and their addresses and Rx/Tx data
+ */
+status_t
+get_netif(gimli_t *gimli)
+{
+    struct ifaddrs *ifaddr, *ifa;
+    int family, s;
+    char ipv4[NI_MAXHOST];
+
+    if (getifaddrs(&ifaddr) == -1) {
+        printf("getifaddrs failed\n");
+        return (G_FAIL);
+    }
+
+    gimli->netifs = 0;
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+            family = ifa->ifa_addr->sa_family;
+            sprintf(gimli->net[gimli->netifs].ifname, ifa->ifa_name);
+            s = getnameinfo(ifa->ifa_addr,
+                    (family == AF_INET) ? sizeof(struct sockaddr_in) :
+                    sizeof(struct sockaddr_in6),
+                    ipv4, NI_MAXHOST,
+                    NULL, 0, NI_NUMERICHOST);
+            if (s != 0) {
+                printf("getnameinfo failed: %s\n", gai_strerror(s));
+                return (G_FAIL);
+            }
+            sprintf(gimli->net[gimli->netifs].ipv4, ipv4);
+            gimli->netifs++;
+        }
+        /*
+        if (family == AF_PACKET && ifa->ifa_data != NULL) {
+            struct rtnl_link_stats *stats = ifa->ifa_data;
+
+            gimli->net[n].tx_packets = stats->tx_packets;
+            gimli->net[n].rx_packets = stats->rx_packets;
+            gimli->net[n].tx_bytes = stats->tx_bytes;
+            gimli->net[n].rx_bytes = stats->rx_bytes;
+        }
+        */
+    }
+
+    freeifaddrs(ifaddr);
+    return (G_OK);
+}
+
 void *
 thread_create_detached(void *(*func) (void *), void *arg)
 {
@@ -181,6 +231,16 @@ gimli_json(const char *buf, char *output, size_t size)
                     "\"cores\":%d" \
                 "}\n",
                 gimli.cores);
+    } else if (strcmp(buf, "net") == 0) {
+        snprintf(output+strlen(output), size, "{\"netifs\":[");
+        for (int i=0; i<gimli.netifs; i++) {
+            sprintf(output+strlen(output), IFNAME_JSON, gimli.net[i].ifname,
+                    gimli.net[i].ipv4);
+            if (i+1 < gimli.netifs) {
+                sprintf(output+strlen(output), ",");
+            }
+        }
+        sprintf(output+strlen(output), "]}\n");
     } else if (strcmp(buf, "all") == 0) {
         snprintf(output, size,
                 "{" \
@@ -194,14 +254,56 @@ gimli_json(const char *buf, char *output, size_t size)
                     "\"load\":[%.2f, %.2f, %.2f]," \
                     "\"uptime\":[%lu, %01lu, %02lu]," \
                     "\"procs\":%hu," \
-                    "\"cores\":%d" \
-                "}\n",
+                    "\"cores\":%d,",
                 gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
                 gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
                 gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
                 gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN],
                 gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60,
                 gimli.procs, gimli.cores);
+        snprintf(output+strlen(output), size, "\"netifs\":[");
+        for (int i=0; i<gimli.netifs; i++) {
+            sprintf(output+strlen(output), IFNAME_JSON, gimli.net[i].ifname,
+                    gimli.net[i].ipv4);
+            if (i+1 < gimli.netifs) {
+                sprintf(output+strlen(output), ",");
+            }
+        }
+        sprintf(output+strlen(output), "]}\n");
+    } else if (strcmp(buf, "pretty") == 0) {
+        snprintf(output, size,
+                "{\n" \
+                "    \"cpu\": {\n" \
+                "        \"us\": %.1Lf,\n" \
+                "        \"sy\": %.1Lf,\n" \
+                "        \"id\": %.1Lf,\n" \
+                "        \"wa\": %.1Lf,\n" \
+                "        \"ni\": %.1Lf\n" \
+                "    },\n" \
+                "    \"load\": [%.2f, %.2f, %.2f],\n" \
+                "    \"uptime\": [%lu, %01lu, %02lu],\n" \
+                "    \"procs\": %hu,\n" \
+                "    \"cores\": %d,\n",
+                gimli.cpu[CPU_USER], gimli.cpu[CPU_SYSTEM],
+                gimli.cpu[CPU_IDLE], gimli.cpu[CPU_IOWAIT],
+                gimli.cpu[CPU_NICE], gimli.load[LOAD_ONE],
+                gimli.load[LOAD_FIVE], gimli.load[LOAD_FIFTEEN],
+                gimli.uptime/86400, gimli.uptime/3600%24, gimli.uptime/60%60,
+                gimli.procs, gimli.cores);
+        snprintf(output+strlen(output), size, "    \"netifs\": [");
+        for (int i=0; i<gimli.netifs; i++) {
+            if (i==0) {
+                sprintf(output+strlen(output), IFNAME_PRETTY_FIRST_JSON,
+                        gimli.net[i].ifname, gimli.net[i].ipv4);
+            } else {
+                sprintf(output+strlen(output), IFNAME_PRETTY_JSON,
+                        gimli.net[i].ifname, gimli.net[i].ipv4);
+            }
+            if (i+1 < gimli.netifs) {
+                sprintf(output+strlen(output), ",\n");
+            }
+        }
+        sprintf(output+strlen(output), "\n    ]\n}\n");
     } else {
         snprintf(output, size, "{\"status\": 1}\n");
     }
@@ -213,7 +315,7 @@ handle_connection(void *arg)
     int fd, len;
     char buf[1024];
     char *index = NULL;
-    char output[2046];
+    char output[2048] = {0};
     size_t size = sizeof (output);
 
     fd = *((int *) arg);
@@ -334,6 +436,17 @@ gimli_mine_meminfo()
     }
 }
 
+void *
+gimli_mine_netif()
+{
+    while (1) {
+        if (get_netif(&gimli) != G_OK) {
+            printf("get_netif failed\n");
+        }
+        sleep(1);
+    }
+}
+
 int
 main()
 {
@@ -341,6 +454,7 @@ main()
     thread_create_detached(&gimli_mine_cpu, NULL);
     thread_create_detached(&gimli_mine_load, NULL);
     thread_create_detached(&gimli_mine_meminfo, NULL);
+    thread_create_detached(&gimli_mine_netif, NULL);
 
     /* Start main program loop. */
     handle_connections();

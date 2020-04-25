@@ -19,6 +19,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <linux/if_link.h>
+#include <linux/if.h>
+
 
 #define PROC_STAT    "/proc/stat"
 #define PROC_LOADAVG "/proc/loadavg"
@@ -31,6 +36,16 @@
 
 #define CPU_FMT      "cpu %Lu %Lu %Lu %Lu %Lu"
 #define LOAD_FMT     "%f %f %f"
+
+#define IFNAME_JSON "{\"ifname\":\"%s\",\"ipv4\":\"%s\"}"
+#define IFNAME_PRETTY_JSON          "        {\n"\
+                                    "            \"ifname\": \"%s\",\n"\
+                                    "            \"ipv4\": \"%s\"\n"\
+                                    "        }"
+#define IFNAME_PRETTY_FIRST_JSON    "{\n"\
+                                    "            \"ifname\": \"%s\",\n"\
+                                    "            \"ipv4\": \"%s\"\n"\
+                                    "        }"
 
 enum cpu_util {
     CPU_USER       = 0,
@@ -71,6 +86,16 @@ typedef struct {
 } gimli_cpu_t;
 
 typedef struct {
+    char ifname[IFNAMSIZ];
+    char ipv4[NI_MAXHOST];
+    // char family[NI_MAXSERV];
+    // unsigned tx_packets;
+    // unsigned rx_packets;
+    // unsigned tx_bytes;
+    // unsigned rx_bytes;
+} gimli_net_t;
+
+typedef struct {
     int            cores;                     // number of cpu's
     long double    cpu[CPU_NRSTATS];          // in percentages
     float          load[LOAD_NRSTATS];        // straight from /proc/loadavg
@@ -78,6 +103,8 @@ typedef struct {
     double         memuse;                    // system memory usage as percent
     unsigned long  uptime;                    // system uptime in seconds
     unsigned short procs;                     // number of current processes
+    gimli_net_t    net[255];                  // network interface information
+    unsigned       netifs;                    // number of network interfaces
 } gimli_t;
 
 #endif /* GIMLI_H */

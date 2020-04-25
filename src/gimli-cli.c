@@ -10,6 +10,7 @@
                    "    \"uptime\"   to get system uptime\n" \
                    "    \"procs\"    to get number of current processes\n" \
                    "    \"cores\"    to get number of CPU cores\n" \
+                   "    \"net\"      to get network interfaces\n" \
                    "    \"all\"      to see all data\n"
 
 int
@@ -36,7 +37,7 @@ int
 main(int argc, char **argv)
 {
     int fd, len, noninteractive = 0;
-    char buf[1024];
+    char buf[2048];
     char *input = NULL;
     char *host, *port;
 
@@ -96,7 +97,7 @@ main(int argc, char **argv)
             free(input);
             return (3);
         }
-        if ((len = recv(fd, buf, 256, 0)) < 1) {
+        if ((len = recv(fd, buf, sizeof (buf), 0)) < 1) {
             free(input);
             return (4);
         }
