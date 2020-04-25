@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+#  gimli-cluster
+#    Used to send a query to all gimli nodes in gimli.conf
+#
+#  gimli.conf format:
+#
+#  <ip>
+#  <ip>
+
+if [ -z $1 ]; then
+    printf "Usage: gimli-cluster <command>\n"
+    exit 1
+fi
+
+if [ ! -f gimli.conf ]; then
+    printf "Error: could not load gimli.conf\n"
+    exit 1
+fi
+
+if [ ! -f gimli-cli ]; then
+    printf "Error: could not load gimli-cli\n"
+    exit 1
+fi
+
+for server in $(cat gimli.conf); do
+    ./gimli-cli $server 8001 $1
+done

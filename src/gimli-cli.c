@@ -11,7 +11,8 @@
                    "    \"procs\"    to get number of current processes\n" \
                    "    \"cores\"    to get number of CPU cores\n" \
                    "    \"net\"      to get network interfaces\n" \
-                   "    \"all\"      to see all data\n"
+                   "    \"all\"      to see all data\n" \
+                   "    \"pretty\"   to see all data in pretty JSON\n"
 
 int
 gimli_connect(char *host, int port)
