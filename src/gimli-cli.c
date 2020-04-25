@@ -41,12 +41,12 @@ main(int argc, char **argv)
     char *input = NULL;
     char *host, *port;
 
-    if (!(argc == 1 || argc == 2 || argc == 3)) {
-        printf("gimli-cli [ | <host> <port> | <cmd>]\n");
+    if (!(argc == 1 || argc == 2 || argc == 3 || argc == 4)) {
+        printf("gimli-cli [ | <host> <port> [cmd] | <cmd>]\n");
         return (1);
     }
 
-    if (argc == 3) {
+    if (argc == 3 || argc == 4) {
         host = strdup(argv[1]);
         port = strdup(argv[2]);
         fd = gimli_connect(argv[1], strtol(argv[2], &(char *){ "" }, 10));
@@ -54,9 +54,9 @@ main(int argc, char **argv)
         host = strdup("127.0.0.1");
         port = strdup("8001");
         fd = gimli_connect("127.0.0.1", 8001);
-        if (argc == 2) {
-            noninteractive = 1;
-        }
+    }
+    if (argc == 2 || argc == 4) {
+        noninteractive = 1;
     }
 
     if (fd < 0) {
@@ -67,7 +67,11 @@ main(int argc, char **argv)
     while (1) {
         if (noninteractive) {
             // Non-interfactive mode
-            input = strdup(argv[1]);
+            if (argc == 2) {
+                input = strdup(argv[1]);
+            } else {
+                input = strdup(argv[3]);
+            }
         } else {
             // Interactive mode
             printf("%s:%s> ", host, port);
