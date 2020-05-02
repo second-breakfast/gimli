@@ -305,7 +305,7 @@ gimli_json(const char *buf, char *output, size_t size)
         }
         sprintf(output+strlen(output), "\n    ]\n}\n");
     } else {
-        snprintf(output, size, "{\"status\": 1}\n");
+        snprintf(output, size, "{\"err\": 1}\n");
     }
 }
 
