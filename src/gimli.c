@@ -300,10 +300,10 @@ gimli_json(const char *buf, char *output, size_t size)
                         gimli.net[i].ifname, gimli.net[i].ipv4);
             }
             if (i+1 < gimli.netifs) {
-                sprintf(output+strlen(output), ",\n");
+                sprintf(output+strlen(output), ", ");
             }
         }
-        sprintf(output+strlen(output), "\n    ]\n}\n");
+        sprintf(output+strlen(output), "]\n}\n");
     } else {
         snprintf(output, size, "{\"err\": 1}\n");
     }

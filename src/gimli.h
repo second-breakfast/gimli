@@ -38,14 +38,14 @@
 #define LOAD_FMT     "%f %f %f"
 
 #define IFNAME_JSON "{\"ifname\":\"%s\",\"ipv4\":\"%s\"}"
-#define IFNAME_PRETTY_JSON          "        {\n"\
-                                    "            \"ifname\": \"%s\",\n"\
-                                    "            \"ipv4\": \"%s\"\n"\
-                                    "        }"
+#define IFNAME_PRETTY_JSON          "{\n"\
+                                    "        \"ifname\": \"%s\",\n"\
+                                    "        \"ipv4\": \"%s\"\n"\
+                                    "    }"
 #define IFNAME_PRETTY_FIRST_JSON    "{\n"\
-                                    "            \"ifname\": \"%s\",\n"\
-                                    "            \"ipv4\": \"%s\"\n"\
-                                    "        }"
+                                    "        \"ifname\": \"%s\",\n"\
+                                    "        \"ipv4\": \"%s\"\n"\
+                                    "    }"
 
 enum cpu_util {
     CPU_USER       = 0,
