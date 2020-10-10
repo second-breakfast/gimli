@@ -53,8 +53,8 @@ main(int argc, char **argv)
         fd = gimli_connect(argv[1], strtol(argv[2], &(char *){ "" }, 10));
     } else {
         host = strdup("127.0.0.1");
-        port = strdup("8001");
-        fd = gimli_connect("127.0.0.1", 8001);
+        port = strdup("8043");
+        fd = gimli_connect("127.0.0.1", 8043);
     }
     if (argc == 2 || argc == 4) {
         noninteractive = 1;

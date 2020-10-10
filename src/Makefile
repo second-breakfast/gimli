@@ -9,3 +9,6 @@ gimli-cli: gimli-cli.c
 
 clean:
 	rm -f gimli gimli-cli
+
+install:
+	mkdir -p $(HOME)/bin && cp gimli $(HOME)/bin

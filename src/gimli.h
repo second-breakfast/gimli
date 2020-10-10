@@ -35,7 +35,9 @@
 #define MILLION      1000000L
 #define BILLION      1000000000L
 
-#define SERVER_PORT  8001
+// 42? Not bad for an elvish princeling.
+// I happen to be sitting comfortably at 43.
+#define SERVER_PORT  8043
 
 #define CPU_FMT      "cpu %Lu %Lu %Lu %Lu %Lu"
 #define LOAD_FMT     "%f %f %f"
