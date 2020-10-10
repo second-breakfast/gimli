@@ -12,13 +12,16 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <signal.h>
+#include <syslog.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <linux/if_link.h>

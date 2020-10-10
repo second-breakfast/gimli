@@ -24,7 +24,7 @@ gimli_t           gimli;
  * More info about these values can be found in proc(5).
  *
  */
-status_t
+static status_t
 get_cpu_util(gimli_t *gimli)
 {
     FILE          *f;
@@ -78,7 +78,7 @@ get_cpu_util(gimli_t *gimli)
  * More info about these values can be found in proc(5).
  *
  */
-status_t
+static status_t
 get_loadavg(gimli_t *gimli)
 {
     FILE          *f;
@@ -103,7 +103,7 @@ get_loadavg(gimli_t *gimli)
  *
  * For more info on memory fields, see sysinfo(2).
  */
-status_t
+static status_t
 get_meminfo(gimli_t *gimli)
 {
    struct sysinfo meminfo;
@@ -132,7 +132,7 @@ get_meminfo(gimli_t *gimli)
  *
  * Detects all network interfaces and their addresses and Rx/Tx data
  */
-status_t
+static status_t
 get_netif(gimli_t *gimli)
 {
     struct ifaddrs *ifaddr, *ifa;
@@ -140,7 +140,7 @@ get_netif(gimli_t *gimli)
     char ipv4[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) == -1) {
-        printf("getifaddrs failed\n");
+        syslog(LOG_NOTICE, "getifaddrs failed\n");
         return (G_FAIL);
     }
 
@@ -155,7 +155,7 @@ get_netif(gimli_t *gimli)
                     ipv4, NI_MAXHOST,
                     NULL, 0, NI_NUMERICHOST);
             if (s != 0) {
-                printf("getnameinfo failed: %s\n", gai_strerror(s));
+                syslog(LOG_NOTICE, "getnameinfo failed: %s\n", gai_strerror(s));
                 return (G_FAIL);
             }
             sprintf(gimli->net[gimli->netifs].ipv4, ipv4);
@@ -177,7 +177,7 @@ get_netif(gimli_t *gimli)
     return (G_OK);
 }
 
-void *
+static void *
 thread_create_detached(void *(*func) (void *), void *arg)
 {
     pthread_t tid;
@@ -189,7 +189,7 @@ thread_create_detached(void *(*func) (void *), void *arg)
     return (void *) {0};
 }
 
-void
+static void
 gimli_json(const char *buf, char *output, size_t size)
 {
     if (strcmp(buf, "cpu") == 0) {
@@ -309,7 +309,7 @@ gimli_json(const char *buf, char *output, size_t size)
     }
 }
 
-void *
+static void *
 handle_connection(void *arg)
 {
     int fd, len;
@@ -333,7 +333,7 @@ handle_connection(void *arg)
             buf[len] = '\0';
         }
 
-        printf("<- '%s'\n", buf);
+        syslog(LOG_NOTICE, "<- '%s'\n", buf);
         gimli_json(buf, output, size);
         if (send(fd, output, strlen(output), MSG_NOSIGNAL) <= 0) break;
     }
@@ -347,7 +347,7 @@ handle_connection(void *arg)
     return (void *) {0};
 }
 
-void *
+static void *
 handle_connections()
 {
     int fd, newfd;
@@ -356,12 +356,12 @@ handle_connections()
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
-        printf("Couldn't create socket: %m\n");
+        syslog(LOG_NOTICE, "Couldn't create socket: %m\n");
         exit(1);
     }
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 },
                 sizeof (int)) < 0) {
-        printf("setsockopt(SO_REUSEADDR) failed\n");
+        syslog(LOG_NOTICE, "setsockopt(SO_REUSEADDR) failed\n");
         exit(1);
     }
 
@@ -372,25 +372,25 @@ handle_connections()
 
     if (bind(fd, (struct sockaddr *) &svr_addr,
                 sizeof(struct sockaddr_in)) == -1) {
-        printf("Couldn't bind to socket: %m\n");
+        syslog(LOG_NOTICE, "Couldn't bind to socket: %m\n");
         close(fd);
         exit(1);
     }
 
     /* Listen on specified port. */
     if (listen(fd, 5) == -1) {
-        printf("Couldn't listen to port: %m\n");
+        syslog(LOG_NOTICE, "Couldn't listen to port: %m\n");
         close(fd);
         exit(1);
     }
-    printf("Listening at: 127.0.0.1:%d (%d)\n", SERVER_PORT, (int) getpid());
+    syslog(LOG_NOTICE, "Listening at: 127.0.0.1:%d (%d)\n", SERVER_PORT, (int) getpid());
 
     /* Accept connections. */
     peer_addr_size = sizeof(struct sockaddr_in);
     while ((newfd = accept(fd, (struct sockaddr *) &peer_addr,
                     &peer_addr_size))) {
         if (newfd != -1) {
-            printf("Incoming connection from %s:%d, fd=%d\n",
+            syslog(LOG_NOTICE, "Incoming connection from %s:%d, fd=%d\n",
                     inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port),
                     newfd);
             int localfd = newfd;
@@ -409,7 +409,7 @@ gimli_mine_cpu()
     gimli.cores = sysconf(_SC_NPROCESSORS_CONF);
     while (1) {
         if (get_cpu_util(&gimli) != G_OK) {
-            printf("get_cpu_util failed\n");
+            syslog(LOG_NOTICE, "get_cpu_util failed\n");
         }
     }
 }
@@ -419,7 +419,7 @@ gimli_mine_load()
 {
     while (1) {
         if (get_loadavg(&gimli) != G_OK) {
-            printf("get_loadavg failed\n");
+            syslog(LOG_NOTICE, "get_loadavg failed\n");
         }
         sleep(1);
     }
@@ -430,7 +430,7 @@ gimli_mine_meminfo()
 {
     while (1) {
         if (get_meminfo(&gimli) != G_OK) {
-            printf("get_meminfo failed\n");
+            syslog(LOG_NOTICE, "get_meminfo failed\n");
         }
         sleep(1);
     }
@@ -441,15 +441,71 @@ gimli_mine_netif()
 {
     while (1) {
         if (get_netif(&gimli) != G_OK) {
-            printf("get_netif failed\n");
+            syslog(LOG_NOTICE, "get_netif failed\n");
         }
         sleep(1);
     }
 }
 
+
+static void
+daemonize(void)
+{
+    pid_t pid;
+
+    // Fork off the parent process.
+    pid = fork();
+
+    // An error occurred.
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    // Success: Let the parent terminate.
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    // On success: The child process becomes session leader.
+    if (setsid() < 0)
+        exit(EXIT_FAILURE);
+
+    // Catch, ignore and handle signals.
+    //TODO: Implement a working signal handler */
+    signal(SIGCHLD, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+
+    // Fork off for the second time.
+    pid = fork();
+
+    // An error occurred.
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    // Success: Let the parent terminate.
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    // Set new file permissions.
+    umask(0);
+
+    // Change the working directory to the root directory
+    // or another appropriated directory.
+    chdir("/");
+
+    // Close all open file descriptors
+    for (int x = sysconf(_SC_OPEN_MAX); x>=0; x--) {
+        close (x);
+    }
+
+    // Open the log file. -> /var/log/syslog -> [gimli]
+    openlog ("gimli", LOG_PID, LOG_DAEMON);
+}
+
 int
 main()
 {
+    /* Become a deamon. */
+    daemonize();
+
     /* Start the mine threads to gather system information. */
     thread_create_detached(&gimli_mine_cpu, NULL);
     thread_create_detached(&gimli_mine_load, NULL);
@@ -460,5 +516,6 @@ main()
     handle_connections();
 
     /* Never reached. */
+    closelog();
     return (0);
 }
