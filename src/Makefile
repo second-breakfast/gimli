@@ -11,4 +11,4 @@ clean:
 	rm -f gimli gimli-cli
 
 install:
-	mkdir -p $(HOME)/bin && cp gimli $(HOME)/bin
+	mkdir -p $(HOME)/bin && cp gimli $(HOME)/bin && cp gimli-cli $(HOME)/bin
